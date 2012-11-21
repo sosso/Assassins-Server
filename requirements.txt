@@ -1,0 +1,4 @@
+SQLAlchemy==0.7.9
+mysql-python==1.2.4c1
+requests==0.14.2
+tornado==2.4

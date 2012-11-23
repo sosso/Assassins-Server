@@ -7,21 +7,28 @@ from sqlalchemy.orm import relationship, backref, scoped_session
 from sqlalchemy.orm.session import sessionmaker
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import String, Boolean
+import logging
 import dbutils
 import os
 
 if bool(os.environ.get('TEST_RUN', False)):
-    engine = create_engine('mysql://anthony:password@localhost:3306/assassins', echo=True, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
+    engine = create_engine('mysql://anthony:password@localhost:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
 else:
     engine = create_engine('mysql://bfc1ffabdb36c3:65da212b@us-cdbr-east-02.cleardb.com/heroku_1cec684f35035ce', echo=True, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
 
 Base = declarative_base(bind=engine)
-sm = sessionmaker(bind=engine, autoflush=True, autocommit=False, expire_on_commit=False)
+sm = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
 Session = scoped_session(sm)
+logging.basicConfig()
+
+def clear_all():
+    for table in reversed(Base.metadata.sorted_tables):
+        engine.execute(table.delete())
 
 
 class User(Base):
     __tablename__ = 'user'
+    logger = logging.getLogger('User')
     #column definitions
     id = Column(u'id', INTEGER(), primary_key=True, nullable=False)
     username = Column(u'username', VARCHAR(length=255), nullable=False)
@@ -32,6 +39,17 @@ class User(Base):
         self.username = username
         self.password = password
         self.profile_picture = profile_picture
+    
+def login(username, password):
+    logger = logging.getLogger('login')
+    session = Session()
+    try:
+        users = session.query(User).filter_by(username=username, password=password).all()
+        user = session.query(User).filter_by(username=username, password=password).one()
+    except Exception, e:
+        logger.exception(e)
+        user = None
+    return user
 
 
 class Game(Base):

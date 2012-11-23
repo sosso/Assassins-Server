@@ -1,10 +1,5 @@
 from sqlalchemy import event, exc
-from sqlalchemy.engine import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import scoped_session, session
-from sqlalchemy.orm.session import sessionmaker
 from sqlalchemy.pool import Pool
-from sqlalchemy.schema import MetaData
 from sqlalchemy.sql.expression import ClauseElement
 
 #logger = logging.getLogger('dbutils')
@@ -20,7 +15,6 @@ def get_or_create(session, model, **kwargs):
         session.flush()
         session.commit()
         return instance
-
 
 @event.listens_for(Pool, "checkout")
 def ping_connection(dbapi_connection, connection_record, connection_proxy):

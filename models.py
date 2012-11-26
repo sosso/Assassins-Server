@@ -35,6 +35,10 @@ class User(Base):
     password = Column(u'password', VARCHAR(length=255), nullable=False)
     profile_picture = Column(u'profile_picture', VARCHAR(length=255), nullable=False)
     
+    # association proxy of "user_games" collection
+    # to "game" attribute
+    games = association_proxy('user_games', 'game')
+    
     def User(self, password, username, profile_picture):
         self.username = username
         self.password = password
@@ -51,7 +55,6 @@ def login(username, password):
         user = None
     return user
 
-
 class Game(Base):
     __tablename__ = 'game'
     #column definitions
@@ -60,14 +63,24 @@ class Game(Base):
     password = Column(u'password', VARCHAR(length=255), nullable=False)
     starting_money = Column(u'starting_money', Integer(), nullable=False)
     
+    users = association_proxy('game_users', 'user',
+                              creator=lambda kw: Keyword(keyword=kw))
+    
     def Game(self, password, title, starting_money=DEFAULT_STARTING_MONEY):
         self.title = title
         self.password = password
         self.starting_money = starting_money
+        
+    def add_users(self, users_list):
+        for user in users_list:
+            self.add_user(user)
+    
+    def add_user(self, user):
+        self.users.append(user)
 
 
-class UserInGameStatus(Base):
-    __tablename__ = 'usergamepermission'
+class UserGame(Base):
+    __tablename__ = 'user_game'
 
     user_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
     game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
@@ -75,15 +88,27 @@ class UserInGameStatus(Base):
     alive = Column(Boolean)
     target_user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
     
+    # bidirectional attribute/collection of "user"/"user_game"
+    user = relationship(User,
+                primaryjoin=(user_id==User.id),
+                backref=backref("user_games",
+                                cascade="all, delete-orphan")
+            )
+
+    # reference to the "Game" object
+    game = relationship("Game", 
+                        primaryjoin=(game_id==Game.id),
+                        backref=backref("game_users", cascade="all, delete-orphan"))
+    
 
     def __init__(self, user_id, item_id, money=DEFAULT_STARTING_MONEY):
         self.user_id = user_id
         self.item_id = item_id
 
     def __repr__(self):
-        return '<UserInGameStatus %d @ %d>' % (self.game_id, self.user_id)
+        return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
 
-
+        
 class Item(Base):
     __tablename__ = 'item'
     id = Column(Integer, primary_key=True)

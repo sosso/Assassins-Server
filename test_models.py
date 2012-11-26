@@ -33,14 +33,21 @@ class TestUser(BaseTest):
 class TestGame(BaseTest):
     
     def test_game_creation(self):
-        users_list = make_users(4)
-        self.session.add_all(users_list)
         game = Game(title='test game', password='testpassword', starting_money=3)
         self.session.add(game)
         self.session.flush()
         games_from_db = self.session.query(Game).all()
         self.assertEqual(1, len(games_from_db))
-        self.assertEqual(game, games_from_db[0])
+        self.assertEqual(game, games_from_db[0]) 
+    
+    def test_add_users_to_game(self):
+        users_list = make_users(4)
+        self.session.add_all(users_list)
+        game = Game(title='test game', password='testpassword', starting_money=3)
+        game.add_users(users_list)
+        self.session.flush()
+        game_from_db = self.sesson.query(Game).filter_by(title=game.title).one()
+        self.assertEqual(users_list, game_from_db.users)
         
         
 def make_users(number_of_users):

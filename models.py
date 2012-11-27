@@ -1,14 +1,16 @@
+from dbutils import get_or_create
 from game_constants import DEFAULT_STARTING_MONEY
 from sqlalchemy import Column, Integer, VARCHAR, INTEGER
 from sqlalchemy.engine import create_engine
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref, scoped_session
-from sqlalchemy.orm.session import sessionmaker
+from sqlalchemy.orm.session import sessionmaker, object_session
 from sqlalchemy.schema import ForeignKey
+from sqlalchemy.sql.expression import and_
 from sqlalchemy.types import String, Boolean
-import logging
 import dbutils
+import logging
 import os
 
 if bool(os.environ.get('TEST_RUN', False)):
@@ -55,6 +57,27 @@ def login(username, password):
         user = None
     return user
 
+class UserGame(Base):
+    __tablename__ = 'user_game'
+
+    user_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
+    game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
+    money = Column(Integer, nullable=False)
+    alive = Column(Boolean)
+    target_user_id = Column(Integer, ForeignKey('user.id'), nullable=True)
+    
+    user = relationship(User, primaryjoin=User.id==user_id)
+    
+    def __init__(self, user_id, game_id, money=DEFAULT_STARTING_MONEY, alive=True, target_user_id=None):
+        self.user_id = user_id
+        self.game_id = game_id
+        self.alive = alive
+        self.money = money
+        self.target_user_id
+
+    def __repr__(self):
+        return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
+    
 class Game(Base):
     __tablename__ = 'game'
     #column definitions
@@ -63,8 +86,18 @@ class Game(Base):
     password = Column(u'password', VARCHAR(length=255), nullable=False)
     starting_money = Column(u'starting_money', Integer(), nullable=False)
     
-    users = association_proxy('game_users', 'user',
-                              creator=lambda kw: Keyword(keyword=kw))
+    def _get_user_list(self):
+        access_objects = self._get_user_statuses()
+        users_list = []
+        for usergame in access_objects:
+            users_list.append(usergame.user)
+        return users_list
+    user_list = property(_get_user_list)
+    
+    def _get_user_statuses(self):
+        return object_session(self).query(UserGame).filter_by(game_id=self.id).all()
+    user_statuses = property(_get_user_statuses)
+    
     
     def Game(self, password, title, starting_money=DEFAULT_STARTING_MONEY):
         self.title = title
@@ -76,37 +109,11 @@ class Game(Base):
             self.add_user(user)
     
     def add_user(self, user):
-        self.users.append(user)
+        get_or_create(Session(), UserGame, user_id=user.id, game_id=self.id)
+        
+    def get_users(self):
+        return Session().query(UserGame).filter_by(game_id=self.id).all()
 
-
-class UserGame(Base):
-    __tablename__ = 'user_game'
-
-    user_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
-    game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
-    money = Column(Integer, nullable=False)
-    alive = Column(Boolean)
-    target_user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
-    
-    # bidirectional attribute/collection of "user"/"user_game"
-    user = relationship(User,
-                primaryjoin=(user_id==User.id),
-                backref=backref("user_games",
-                                cascade="all, delete-orphan")
-            )
-
-    # reference to the "Game" object
-    game = relationship("Game", 
-                        primaryjoin=(game_id==Game.id),
-                        backref=backref("game_users", cascade="all, delete-orphan"))
-    
-
-    def __init__(self, user_id, item_id, money=DEFAULT_STARTING_MONEY):
-        self.user_id = user_id
-        self.item_id = item_id
-
-    def __repr__(self):
-        return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
 
         
 class Item(Base):

@@ -3,19 +3,10 @@ from sqlalchemy.engine import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm.session import sessionmaker
+from test_utils import BaseTest
 import dbutils
 import unittest
 
-class BaseTest(unittest.TestCase):
-    
-    def setUp(self):
-        self.session = Session()
-    
-    def tearDown(self):
-        self.session.rollback()
-        Session.remove()
-        clear_all()
-        
 class TestUser(BaseTest):
     
     def test_user_creation(self):
@@ -40,22 +31,6 @@ class TestGame(BaseTest):
         self.assertEqual(1, len(games_from_db))
         self.assertEqual(game, games_from_db[0]) 
     
-    def test_add_users_to_game(self):
-        users_list = make_users(4)
-        self.session.add_all(users_list)
-        game = Game(title='test game', password='testpassword', starting_money=3)
-        game.add_users(users_list)
-        self.session.flush()
-        game_from_db = self.sesson.query(Game).filter_by(title=game.title).one()
-        self.assertEqual(users_list, game_from_db.users)
-        
-        
-def make_users(number_of_users):
-    users = []
-    for user_number in range(number_of_users):
-        users.append(User(username='Hitman'+str(user_number), password='123456', profile_picture='hitman.png'))
-    return users
-
 if __name__ == '__main__':
     clear_all()
     unittest.main()

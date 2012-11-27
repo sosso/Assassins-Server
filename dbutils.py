@@ -13,7 +13,6 @@ def get_or_create(session, model, **kwargs):
         instance = model(**params)
         session.add(instance)
         session.flush()
-        session.commit()
         return instance
 
 @event.listens_for(Pool, "checkout")

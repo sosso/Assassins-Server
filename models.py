@@ -118,6 +118,8 @@ class Game(Base):
 class Kill(Base):
     __tablename__ = 'kill'
 
+    id = Column(u'id', INTEGER(), primary_key=True, nullable=False)
+
     game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
     assassin_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
     target_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
@@ -140,6 +142,32 @@ class Kill(Base):
 
     def __repr__(self):
         return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
+
+class Mission(Base):
+    __tablename__ = 'mission'
+    id = Column(u'id', INTEGER(), primary_key=True, nullable=False)
+
+    game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
+    assassin_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
+    target_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
+    
+    #None until it's associated with a kill
+    kill_id = Column(Integer, ForeignKey('kill.id'), nullable=True)
+    
+    assignment_timestamp = Column(DateTime, default=datetime.datetime.now)
+    completed_timestamp = Column(DateTime, nullable=True)
+    
+    def __init__(self, assassin_id, game_id, target_id):
+        self.assassin_id = assassin_id
+        self.game_id = game_id
+        self.target_id = target_id
+    
+    def set_kill_id(self, kill_id):
+        self.kill_id = kill_id
+
+    def __repr__(self):
+        return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
+
 
 
 class Item(Base):

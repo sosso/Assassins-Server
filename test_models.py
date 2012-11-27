@@ -1,4 +1,5 @@
-from models import User, Game, Session, engine, Base, login, clear_all, Kill
+from models import User, Game, Session, engine, Base, login, clear_all, Kill, \
+    Mission
 from sqlalchemy.engine import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import scoped_session
@@ -47,6 +48,25 @@ class TestKill(BaseTest):
         self.assertEqual(1, len(kills_from_db))
         self.assertEqual(kill, kills_from_db[0]) 
     
+class TestMission(BaseTest):
+    
+    def test_mission_creation(self):
+        game = Game(title='test game', password='testpassword', starting_money=3)
+        players = make_users(2)
+        self.session.add(game)
+        self.session.add_all(players)
+        self.session.flush()
+        
+        mission = Mission(assassin_id=players[0].id, \
+                     target_id=players[1].id, \
+                      game_id=game.id)
+                      
+        self.session.add(mission)
+        missions_from_db = self.session.query(Mission).all()
+        self.assertEqual(1, len(missions_from_db))
+        self.assertEqual(mission, missions_from_db[0])
+
+
 if __name__ == '__main__':
     clear_all()
     unittest.main()

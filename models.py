@@ -15,7 +15,7 @@ import logging
 import os
 
 if bool(os.environ.get('TEST_RUN', False)):
-    engine = create_engine('mysql://anthony:password@localhost:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
+    engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
 else:
     engine = create_engine('mysql://bfc1ffabdb36c3:65da212b@us-cdbr-east-02.cleardb.com/heroku_1cec684f35035ce', echo=True, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
 
@@ -67,7 +67,7 @@ class UserGame(Base):
     alive = Column(Boolean)
     target_user_id = Column(Integer, ForeignKey('user.id'), nullable=True)
     
-    user = relationship(User, primaryjoin=User.id==user_id)
+    user = relationship(User, primaryjoin=User.id == user_id)
     
     def __init__(self, user_id, game_id, money=DEFAULT_STARTING_MONEY, alive=True, target_user_id=None):
         self.user_id = user_id
@@ -118,22 +118,25 @@ class Game(Base):
 class Kill(Base):
     __tablename__ = 'kill'
 
-    assassin_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
     game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
+    assassin_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
     target_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
-    picture_url = Column(String(255), nullable=False)
+    
+    kill_picture_url = Column(String(255), nullable=False)
     validation_picture = Column(String(255), nullable=True)
     assassin_gps = Column(String(255), nullable=True)
     target_gps = Column(String(255), nullable=True)
-    timestamp = Column(DateTime, default=datetime.now)
-    confirmed = Column(Boolean)
+    timestamp = Column(DateTime, default=datetime.datetime.now)
+    confirmed = Column(Boolean, default=False)
     
-    def __init__(self, user_id, game_id, money=DEFAULT_STARTING_MONEY, alive=True, target_user_id=None):
-        self.user_id = user_id
+    def __init__(self, assassin_id, game_id, target_id, kill_picture_url, validation_picture=None, assassin_gps=None, target_gps=None):
+        self.assassin_id = assassin_id
         self.game_id = game_id
-        self.alive = alive
-        self.money = money
-        self.target_user_id
+        self.target_id = target_id
+        self.kill_picture_url = kill_picture_url
+        self.validation_picture = validation_picture
+        self.assassin_gps = assassin_gps
+        self.target_gps = target_gps
 
     def __repr__(self):
         return '<UserGame %d @ %d>' % (self.game_id, self.user_id)

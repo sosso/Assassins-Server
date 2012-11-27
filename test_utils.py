@@ -1,4 +1,5 @@
-from models import User, Session, clear_all
+from models import Session, clear_all, User
+import unittest
 
 class BaseTest(unittest.TestCase):
     

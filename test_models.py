@@ -12,13 +12,11 @@ class TestUser(BaseTest):
     def test_user_creation(self):
         u = User(username='Hitman', password='123456', profile_picture='hitman.png')
         self.session.add(u)
-        self.session.flush()
         self.assertEqual(1, len(self.session.query(User).filter_by(username='Hitman').all()))
     
     def test_login(self):
         user = User(username='login_test_hitman', password='login_test_password', profile_picture='hitman.png')
         self.session.add(user)
-        self.session.flush()
         self.assertTrue(user is login(username=user.username, password=user.password))
 
 class TestGame(BaseTest):
@@ -26,7 +24,6 @@ class TestGame(BaseTest):
     def test_game_creation(self):
         game = Game(title='test game', password='testpassword', starting_money=3)
         self.session.add(game)
-        self.session.flush()
         games_from_db = self.session.query(Game).all()
         self.assertEqual(1, len(games_from_db))
         self.assertEqual(game, games_from_db[0]) 

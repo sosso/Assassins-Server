@@ -15,9 +15,7 @@ class TestUserGame(BaseTest):
         self.session.add_all(users_list)
         game = Game(title='test game', password='testpassword', starting_money=3)
         self.session.add(game)
-        self.session.flush()
         game.add_users(users_list)
-        self.session.flush()
         
         game_from_db = self.session.query(Game).filter_by(title=game.title).one()
         self.assertEqual(users_list, game_from_db.user_list)

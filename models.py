@@ -8,7 +8,8 @@ from sqlalchemy.orm import relationship, backref, scoped_session
 from sqlalchemy.orm.session import sessionmaker, object_session
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.sql.expression import and_
-from sqlalchemy.types import String, Boolean
+from sqlalchemy.types import String, Boolean, DateTime
+import datetime
 import dbutils
 import logging
 import os
@@ -19,7 +20,7 @@ else:
     engine = create_engine('mysql://bfc1ffabdb36c3:65da212b@us-cdbr-east-02.cleardb.com/heroku_1cec684f35035ce', echo=True, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
 
 Base = declarative_base(bind=engine)
-sm = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
+sm = sessionmaker(bind=engine, autoflush=True, autocommit=False, expire_on_commit=False)
 Session = scoped_session(sm)
 logging.basicConfig()
 
@@ -114,8 +115,30 @@ class Game(Base):
     def get_users(self):
         return Session().query(UserGame).filter_by(game_id=self.id).all()
 
+class Kill(Base):
+    __tablename__ = 'kill'
 
-        
+    assassin_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
+    game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
+    target_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
+    picture_url = Column(String(255), nullable=False)
+    validation_picture = Column(String(255), nullable=True)
+    assassin_gps = Column(String(255), nullable=True)
+    target_gps = Column(String(255), nullable=True)
+    timestamp = Column(DateTime, default=datetime.now)
+    confirmed = Column(Boolean)
+    
+    def __init__(self, user_id, game_id, money=DEFAULT_STARTING_MONEY, alive=True, target_user_id=None):
+        self.user_id = user_id
+        self.game_id = game_id
+        self.alive = alive
+        self.money = money
+        self.target_user_id
+
+    def __repr__(self):
+        return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
+
+
 class Item(Base):
     __tablename__ = 'item'
     id = Column(Integer, primary_key=True)

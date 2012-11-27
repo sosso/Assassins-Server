@@ -65,7 +65,6 @@ class UserGame(Base):
     game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
     money = Column(Integer, nullable=False)
     alive = Column(Boolean)
-    target_user_id = Column(Integer, ForeignKey('user.id'), nullable=True)
     
     user = relationship(User, primaryjoin=User.id == user_id)
     
@@ -74,7 +73,6 @@ class UserGame(Base):
         self.game_id = game_id
         self.alive = alive
         self.money = money
-        self.target_user_id
 
     def __repr__(self):
         return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
@@ -111,6 +109,7 @@ class Game(Base):
     
     def add_user(self, user):
         get_or_create(Session(), UserGame, user_id=user.id, game_id=self.id)
+        Session.flush()
         
     def get_users(self):
         return Session().query(UserGame).filter_by(game_id=self.id).all()

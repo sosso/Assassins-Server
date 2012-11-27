@@ -7,6 +7,7 @@ from sqlalchemy.orm.session import sessionmaker
 from test_utils import BaseTest, make_users
 import dbutils
 import unittest
+
 class TestUser(BaseTest):
     
     def test_user_creation(self):
@@ -66,8 +67,9 @@ class TestMission(BaseTest):
         self.assertEqual(1, len(missions_from_db))
         self.assertEqual(mission, missions_from_db[0])
 
-
-if __name__ == '__main__':
-    clear_all()
-    unittest.main()
-    clear_all()
+def suite():
+    user_tests = unittest.TestLoader().loadTestsFromTestCase(TestUser)
+    game_tests = unittest.TestLoader().loadTestsFromTestCase(TestGame)
+    kill_tests = unittest.TestLoader().loadTestsFromTestCase(TestKill)
+    mission_tests = unittest.TestLoader().loadTestsFromTestCase(TestMission)
+    return unittest.TestSuite([user_tests, game_tests, kill_tests, mission_tests])

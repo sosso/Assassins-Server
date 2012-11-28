@@ -14,7 +14,7 @@ class TestUser(BaseTest):
         u = User(username='Hitman', password='123456', profile_picture='hitman.png')
         self.session.add(u)
         self.assertEqual(1, len(self.session.query(User).filter_by(username='Hitman').all()))
-    
+
     def test_login(self):
         user = User(username='login_test_hitman', password='login_test_password', profile_picture='hitman.png')
         self.session.add(user)

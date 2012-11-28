@@ -15,7 +15,7 @@ import logging
 import os
 
 if bool(os.environ.get('TEST_RUN', False)):
-    engine = create_engine('mysql://anthony@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
+    engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
 else:
     engine = create_engine('mysql://bfc1ffabdb36c3:65da212b@us-cdbr-east-02.cleardb.com/heroku_1cec684f35035ce', echo=True, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
 
@@ -80,10 +80,12 @@ class UserGame(Base):
 class Game(Base):
     __tablename__ = 'game'
     #column definitions
-    id = Column(u'id', INTEGER(), primary_key=True, nullable=False)
-    title = Column(u'title', VARCHAR(length=255), nullable=False)
-    password = Column(u'password', VARCHAR(length=255), nullable=False)
-    starting_money = Column(u'starting_money', Integer(), nullable=False)
+    id = Column(u'id', INTEGER(), primary_key=True)
+    title = Column(u'title', VARCHAR(length=255))
+    password = Column(u'password', VARCHAR(length=255))
+    starting_money = Column(u'starting_money', Integer())
+    max_shot_interval_minutes = Column(Integer(), default=90)
+    
     
     def _get_user_list(self):
         access_objects = self._get_user_statuses()
@@ -98,10 +100,11 @@ class Game(Base):
     user_statuses = property(_get_user_statuses)
     
     
-    def Game(self, password, title, starting_money=DEFAULT_STARTING_MONEY):
+    def Game(self, password, title, starting_money=DEFAULT_STARTING_MONEY, max_shot_interval_minutes=90):
         self.title = title
         self.password = password
         self.starting_money = starting_money
+        self.max_shot_interval_minutes = max_shot_interval_minutes
         
     def add_users(self, users_list):
         for user in users_list:
@@ -181,12 +184,13 @@ class Shot(Base):
     
     timestamp = Column(DateTime, default=datetime.datetime.now)
     
-    def __init__(self, assassin_id, target_id, game_id, shot_picture, assassin_gps=None):
+    def __init__(self, assassin_id, target_id, game_id, shot_picture, assassin_gps=None, timestamp=datetime.datetime.now):
         self.assassin_id = assassin_id
         self.target_id = target_id
         self.game_id = game_id
         self.shot_picture_url = shot_picture
         self.assassin_gps = assassin_gps
+        self.timestamp = timestamp
 
     def set_kill_id(self, kill_id):
         self.kill_id = kill_id

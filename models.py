@@ -167,7 +167,29 @@ class Mission(Base):
     def __repr__(self):
         return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
 
+class Shot(Base):
+    __tablename__ = 'shot'
+    id = Column(u'id', INTEGER(), primary_key=True, nullable=False)
+    
+    game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
+    assassin_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
+    target_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
+    
+    kill_id = Column(Integer, ForeignKey('kill.id'), nullable=True)
+    shot_picture_url = Column(String(255), nullable=False)
+    assassin_gps= Column(String(255), nullable=True)
+    
+    timestamp = Column(DateTime, default=datetime.datetime.now)
+    
+    def __init__(self, assassin_id, target_id, game_id, shot_picture, assassin_gps=None):
+        self.assassin_id = assassin_id
+        self.target_id = target_id
+        self.game_id = game_id
+        self.shot_picture_url = shot_picture
+        self.assassin_gps = assassin_gps
 
+    def set_kill_id(self, kill_id):
+        self.kill_id = kill_id
 
 class Item(Base):
     __tablename__ = 'item'

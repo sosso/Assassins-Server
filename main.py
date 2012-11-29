@@ -5,8 +5,11 @@
 #
 
 #!/usr/bin/env python
-import os.path
+from modelhandlers import StatsHandler
+from tornado.options import define, options
+import logging
 import os
+import os.path
 import tornado.escape
 import tornado.httpserver
 import tornado.ioloop
@@ -15,8 +18,8 @@ import tornado.web
 import unicodedata
 
 # import and define tornado-y things
-from tornado.options import define, options
 define("port", default=5000, help="run on the given port", type=int)
+logging.basicConfig()
 
 # application settings and handle mapping info
 class Application(tornado.web.Application):

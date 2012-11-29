@@ -80,6 +80,7 @@ class UserGame(Base):
 class Game(Base):
     __tablename__ = 'game'
     #column definitions
+    logger = logging.getLogger('Game')
     id = Column(u'id', INTEGER(), primary_key=True)
     title = Column(u'title', VARCHAR(length=255))
     password = Column(u'password', VARCHAR(length=255))
@@ -116,6 +117,35 @@ class Game(Base):
         
     def get_users(self):
         return Session().query(UserGame).filter_by(game_id=self.id).all()
+    
+    def mission_completed(self, mission):
+        #validate the mission belongs to this game
+        if mission.game_id == self.id:
+            pass
+            #Get the target's mission to reassign it to the assassin
+            targets_mission = object_session(self).query(Mission).filter_by(game_id=self.id, assassin_id=mission.target_id, completed_timestamp=None).one()
+            if targets_mission.target_id == mission.assassin_id: #meaning the players in question were targeting each other, and that the game should probably be over
+                self.game_over()
+            else:
+                self.reassign_mission(targets_mission)
+        else:
+            raise Exception("Supplied mission does not belong to this game!")
+    
+    #TODO stub
+    def game_over(self):
+        pass
+        
+    def reassign_mission(self, new_assassin_user, mission_to_reassign):
+        #create a new mission with the proper assassin and target
+        reassigned_mission = Mission(assassin_id=new_assassin_user.id, target_id=mission_to_reassign.target_id, game_id=self.id)
+        session = object_session(self)
+        try:
+            session.add(reassigned_mission)
+            session.flush()
+            session.commit()
+        except Exception, e:
+            session.rollback()
+            self.logger.exception(e)
 
 # I don't know that we need a separate class for this.  Shot can probably encapsulate it just fine?
 # But maybe we archive this?
@@ -171,6 +201,8 @@ class Mission(Base):
 
     def __repr__(self):
         return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
+
+
 
 class Shot(Base):
     __tablename__ = 'shot'

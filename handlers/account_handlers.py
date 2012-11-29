@@ -43,6 +43,8 @@ class CreateUserHandler(tornado.web.RequestHandler):
         session = Session()
         try:
             user = get_user(username=username, password=password)
+            if user is not None:
+                
             user = dbutils.get_or_create(session, User, username=username)
             final_string = "User creation successful!"
         except Exception, e:

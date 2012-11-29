@@ -1,4 +1,4 @@
-from models import User, Item, ItemCompletion, Session, UserGame
+from models import User, Item, Session, UserGame
 from pkg_resources import StringIO
 from sqlalchemy.sql.functions import random
 import dbutils
@@ -13,14 +13,12 @@ username
 item_id
 <file>
 """
-class StatsHandler(tornado.web.RequestHandler):
+class CreateGame(tornado.web.RequestHandler):
     @tornado.web.asynchronous
-    def get(self):
-        username = self.get_argument('username')
-#        item_id = self.get_argument('item_id')
-#        try: file1 = self.request.files['file'][0]
-#        except: file1 = None
-
+    def post(self):
+        friendly_name = self.get_argument('friendly_name', True)
+        game_master_username = self.get_argument('username')
+        base_money = int(self.get_argument('base_money'))
         session = Session()
         try:
             user = dbutils.get_or_create(session, User, username=username)
@@ -37,12 +35,12 @@ class StatsHandler(tornado.web.RequestHandler):
 """
 username
 """
-class GetCompletedItemsHandler(tornado.web.RequestHandler):
+class ViewMission(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     def get(self):
         username = self.get_argument('username')
 
-        session = dbutils.Session()
+        session = Session()
         try:
             user = dbutils.get_or_create(session, User, username=username)
             item_array = []
@@ -57,18 +55,18 @@ class GetCompletedItemsHandler(tornado.web.RequestHandler):
 #            completed_items = session.Query(ItemCompletion).filter()
         except Exception, e:
             session.rollback()
-        dbutils.Session.remove()
+        Session.remove()
         self.finish(simplejson.dumps(item_array))
 
 """
 username
 """
-class CreateUserHandler(tornado.web.RequestHandler):
+class ViewAllMissions(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     def get(self):
         username = self.get_argument('username')
 
-        session = dbutils.Session()
+        session = Session()
         try:
             user = dbutils.get_or_create(session, User, username=username)
             final_string = "User creation successful!"
@@ -76,16 +74,16 @@ class CreateUserHandler(tornado.web.RequestHandler):
             session.rollback()
             final_string = "User creation failed."
         finally:
-            dbutils.Session.remove()
+            Session.remove()
             self.finish(final_string)
 
-class DefineItemHandler(tornado.web.RequestHandler):
+class Assassinate(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     def get(self):
         item_id = self.get_argument('itemid')
         description = self.get_argument('description', '')
 
-        session = dbutils.Session()
+        session = Session()
         try:
             item = dbutils.get_or_create(session, Item, item_id=item_id)
             item.description = description
@@ -98,7 +96,72 @@ class DefineItemHandler(tornado.web.RequestHandler):
             session.rollback()
             finish_string = "Item not added"
         finally:
-            dbutils.Session.remove()
+            Session.remove()
             self.finish(finish_string)
 
+class DisputeHandler(tornado.web.RequestHandler):
+    @tornado.web.asynchronous
+    def get(self):
+        item_id = self.get_argument('itemid')
+        description = self.get_argument('description', '')
 
+        session = Session()
+        try:
+            item = dbutils.get_or_create(session, Item, item_id=item_id)
+            item.description = description
+            session.add(item)
+            session.flush()
+            session.commit()
+            finish_string = "Item added"
+#            completed_items = session.Query(ItemCompletion).filter()
+        except Exception, e:
+            session.rollback()
+            finish_string = "Item not added"
+        finally:
+            Session.remove()
+            self.finish(finish_string)
+
+class ViewKills(tornado.web.RequestHandler):
+    @tornado.web.asynchronous
+    def get(self):
+        item_id = self.get_argument('itemid')
+        description = self.get_argument('description', '')
+
+        session = Session()
+        try:
+            item = dbutils.get_or_create(session, Item, item_id=item_id)
+            item.description = description
+            session.add(item)
+            session.flush()
+            session.commit()
+            finish_string = "Item added"
+#            completed_items = session.Query(ItemCompletion).filter()
+        except Exception, e:
+            session.rollback()
+            finish_string = "Item not added"
+        finally:
+            Session.remove()
+            self.finish(finish_string)
+
+class JoinGame(tornado.web.RequestHandler):
+    @tornado.web.asynchronous
+    def get(self):
+        item_id = self.get_argument('itemid')
+        description = self.get_argument('description', '')
+
+        session = Session()
+        try:
+            item = dbutils.get_or_create(session, Item, item_id=item_id)
+            item.description = description
+            session.add(item)
+            session.flush()
+            session.commit()
+            finish_string = "Item added"
+#            completed_items = session.Query(ItemCompletion).filter()
+        except Exception, e:
+            session.rollback()
+            finish_string = "Item not added"
+        finally:
+            Session.remove()
+            self.finish(finish_string)
+            

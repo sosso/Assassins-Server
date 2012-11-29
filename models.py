@@ -11,6 +11,7 @@ from sqlalchemy.sql.expression import and_
 from sqlalchemy.types import String, Boolean, DateTime
 import datetime
 import dbutils
+import imgur
 import logging
 import os
 
@@ -46,7 +47,19 @@ class User(Base):
         self.username = username
         self.password = password
         self.profile_picture = profile_picture
-    
+
+def create_user(username, password, profile_picture_binary):
+    profile_picture_url = imgur.upload(file_body=profile_picture_binary)
+    s = Session()
+    user = s.query(User).filter_by(username=username).first()
+    if user is not None:
+        raise Exception("Account already exists")
+    else: 
+        user = User(password=password, username=username, profile_picture=profile_picture_url)
+        s.add(user)
+        s.commit()
+        s.flush()
+
 def login(username, password):
     logger = logging.getLogger('login')
     session = Session()
@@ -218,7 +231,7 @@ class Shot(Base):
     
     kill_id = Column(Integer, ForeignKey('kill.id'), nullable=True)
     shot_picture_url = Column(String(255), nullable=False)
-    assassin_gps= Column(String(255), nullable=True)
+    assassin_gps = Column(String(255), nullable=True)
     
     timestamp = Column(DateTime, default=datetime.datetime.now)
     

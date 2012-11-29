@@ -1,4 +1,5 @@
-from models import User, Item, ItemCompletion, Session, UserGame, get_user
+from models import User, Item, ItemCompletion, Session, UserGame, get_user, \
+    login, create_user
 from pkg_resources import StringIO
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.sql.functions import random
@@ -20,14 +21,14 @@ class LoginHandler(tornado.web.RequestHandler):
         username = self.get_argument('username')
         password = self.get_argument('password')
         session = Session()
+        final_string = "ERROR"
         try:
-            user = get_user(username=username, password=password)
-            final_string = "SUCCESS"
-        except NoResultFound:
-            
+            user = login(username=username, password=password)
+            if user is not None:
+                final_string = "SUCCESS"
+                #TODO return their token
         except Exception:
             session.rollback()
-            final_string = "ERROR"
         finally:
             Session.remove()
             self.finish(simplejson.dumps({'result':final_string}))
@@ -38,18 +39,17 @@ class CreateUserHandler(tornado.web.RequestHandler):
     def post(self):
         username = self.get_argument('username')
         password = self.get_argument('password')
-        picture = self.get_argument('profile_picture')
 
         session = Session()
+        result_dict = {}
         try:
-            user = get_user(username=username, password=password)
-            if user is not None:
-                
-            user = dbutils.get_or_create(session, User, username=username)
-            final_string = "User creation successful!"
+            picture_binary = self.request.files['profile_picture'][0]['body']    
+            create_user(username = username, password=password, profile_picture=picture_binary)
+            result_dict['result'] = "SUCCESS"
         except Exception, e:
             session.rollback()
-            final_string = "User creation failed."
+            result_dict['result'] = "ERROR"
+            result_dict['reason'] = e.msg
         finally:
             Session.remove()
-            self.finish(final_string)
+            self.finish(simplejson.dumps(result_dict))

@@ -7,6 +7,10 @@
 #!/usr/bin/env python
 from modelhandlers import StatsHandler
 from tornado.options import define, options
+import handlers.account_handlers as AccountHandlers
+import handlers.game_action_handlers as GameActionHandlers
+import handlers.game_master_handlers as GameMasterHandlers
+import handlers.powerup_handlers as PowerupHandlers
 import logging
 import os
 import os.path
@@ -28,18 +32,20 @@ class Application(tornado.web.Application):
 			(r"/([^/]+)?", MainHandler),
 			(r"/account/createuser", AccountHandlers.CreateUserHandler),
 			(r"/account/login", AccountHandlers.LoginHandler),
+			
 			(r"/game/creategame", GameActionHandlers.CreateGame),
 			(r"/game/viewmission", GameActionHandlers.ViewMission),
 			(r"/game/viewallmissions", GameActionHandlers.ViewAllMissions),
 			(r"/game/assassinate", GameActionHandlers.Assassinate),
-			(r"/game/disputes/view", GameActionHandlers.StatsHandler),
-			(r"/game/disputes/resolve", GameActionHandlers.StatsHandler),
-			(r"/game/kills/view", GameActionHandlers.StatsHandler),
-			(r"/game/join", GameActionHandlers.StatsHandler),
+			(r"/game/disputes", GameActionHandlers.DisputeHandler),
+			(r"/game/kills/view", GameActionHandlers.ViewKills),
+			(r"/game/join", GameActionHandlers.JoinGame),
+			
 			(r"/game/powerup/buy", PowerupHandlers.StatsHandler),
 			(r"/game/powerup/activate", PowerupHandlers.StatsHandler),
 			(r"/game/powerup/inventory", PowerupHandlers.StatsHandler),
 			(r"/game/powerup/viewenabled", PowerupHandlers.StatsHandler),
+			
 			(r"/game/master/kick", GameMasterHandlers.StatsHandler),
 			(r"/game/master/grantpowerup", GameMasterHandlers.StatsHandler),
 			

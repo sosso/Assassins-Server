@@ -147,6 +147,10 @@ class Game(Base):
             session.rollback()
             self.logger.exception(e)
 
+
+def get_user(username, password):
+    return Session().query(User).filter_by(username=username, password=password).one()
+
 # I don't know that we need a separate class for this.  Shot can probably encapsulate it just fine?
 # But maybe we archive this?
 #class Kill(Base):

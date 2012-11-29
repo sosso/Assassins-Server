@@ -26,7 +26,23 @@ class Application(tornado.web.Application):
 	def __init__(self):
 		handlers = [
 			(r"/([^/]+)?", MainHandler),
-			(r"/statshandler", StatsHandler)
+			(r"/account/createuser", AccountHandlers.CreateUserHandler),
+			(r"/account/login", AccountHandlers.LoginHandler),
+			(r"/game/creategame", GameActionHandlers.CreateGame),
+			(r"/game/viewmission", GameActionHandlers.ViewMission),
+			(r"/game/viewallmissions", GameActionHandlers.ViewAllMissions),
+			(r"/game/assassinate", GameActionHandlers.Assassinate),
+			(r"/game/disputes/view", GameActionHandlers.StatsHandler),
+			(r"/game/disputes/resolve", GameActionHandlers.StatsHandler),
+			(r"/game/kills/view", GameActionHandlers.StatsHandler),
+			(r"/game/join", GameActionHandlers.StatsHandler),
+			(r"/game/powerup/buy", PowerupHandlers.StatsHandler),
+			(r"/game/powerup/activate", PowerupHandlers.StatsHandler),
+			(r"/game/powerup/inventory", PowerupHandlers.StatsHandler),
+			(r"/game/powerup/viewenabled", PowerupHandlers.StatsHandler),
+			(r"/game/master/kick", GameMasterHandlers.StatsHandler),
+			(r"/game/master/grantpowerup", GameMasterHandlers.StatsHandler),
+			
 		]
 		settings = dict(
 			template_path=os.path.join(os.path.dirname(__file__), "templates"),

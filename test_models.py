@@ -38,23 +38,23 @@ class TestGame(BaseTest):
     
     def test_game_start(self):
         game = make_game(self.session)
-        assertFalse(game.started)
+        self.assertFalse(game.started)
         
         #There's only one user, so the game can't start
         game.start()
-        assertFalse(game.started)
+        self.assertFalse(game.started)
         
         #Add a user, and the game still can't start because gamemasters can't play
         users = make_users(2)
         self.session.add_all(users)
         game.add_user(users[0])
         game.start()
-        assertFalse(game.started)
+        self.assertFalse(game.started)
         
         #Add the second player, and now we can start because we have two non-gamemaster players
         game.add_user(users[1])
         game.start()
-        assertTrue(game.started)
+        self.assertTrue(game.started)
         
 class TestKill(BaseTest):
     

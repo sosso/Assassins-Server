@@ -117,33 +117,35 @@ class Game(Base):
     def get_users(self):
         return Session().query(UserGame).filter_by(game_id=self.id).all()
 
-class Kill(Base):
-    __tablename__ = 'kill'
-
-    id = Column(u'id', INTEGER(), primary_key=True, nullable=False)
-
-    game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
-    assassin_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
-    target_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
-    
-    kill_picture_url = Column(String(255), nullable=False)
-    validation_picture = Column(String(255), nullable=True)
-    assassin_gps = Column(String(255), nullable=True)
-    target_gps = Column(String(255), nullable=True)
-    timestamp = Column(DateTime, default=datetime.datetime.now)
-    confirmed = Column(Boolean, default=False)
-    
-    def __init__(self, assassin_id, game_id, target_id, kill_picture_url, validation_picture=None, assassin_gps=None, target_gps=None):
-        self.assassin_id = assassin_id
-        self.game_id = game_id
-        self.target_id = target_id
-        self.kill_picture_url = kill_picture_url
-        self.validation_picture = validation_picture
-        self.assassin_gps = assassin_gps
-        self.target_gps = target_gps
-
-    def __repr__(self):
-        return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
+# I don't know that we need a separate class for this.  Shot can probably encapsulate it just fine?
+# But maybe we archive this?
+#class Kill(Base):
+#    __tablename__ = 'kill'
+#
+#    id = Column(u'id', INTEGER(), primary_key=True, nullable=False)
+#
+#    game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
+#    assassin_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
+#    target_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
+#    
+#    kill_picture_url = Column(String(255), nullable=False)
+#    validation_picture = Column(String(255), nullable=True)
+#    assassin_gps = Column(String(255), nullable=True)
+#    target_gps = Column(String(255), nullable=True)
+#    timestamp = Column(DateTime, default=datetime.datetime.now)
+#    confirmed = Column(Boolean, default=False)
+#    
+#    def __init__(self, assassin_id, game_id, target_id, kill_picture_url, validation_picture=None, assassin_gps=None, target_gps=None):
+#        self.assassin_id = assassin_id
+#        self.game_id = game_id
+#        self.target_id = target_id
+#        self.kill_picture_url = kill_picture_url
+#        self.validation_picture = validation_picture
+#        self.assassin_gps = assassin_gps
+#        self.target_gps = target_gps
+#
+#    def __repr__(self):
+#        return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
 
 class Mission(Base):
     __tablename__ = 'mission'

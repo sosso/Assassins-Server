@@ -39,24 +39,15 @@ class ViewMission(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     def get(self):
         username = self.get_argument('username')
-
+        game_id = self.get_argument('game_id')
+        mission_id = self.get_argument('mission_id', None)
         session = Session()
         try:
-            user = dbutils.get_or_create(session, User, username=username)
-            item_array = []
-            for item_completion in user.completed_items:
-                item = item_completion.item
-                info_dict = item.serialize()
-                if item_completion.file_path is not None:
-                    info_dict['image'] = item_completion.file_path
-                else:
-                    info_dict['image'] = ''
-                item_array.append(info_dict)
-#            completed_items = session.Query(ItemCompletion).filter()
+            pass
         except Exception, e:
             session.rollback()
         Session.remove()
-        self.finish(simplejson.dumps(item_array))
+        self.finish(simplejson.dumps())
 
 """
 username
@@ -80,16 +71,12 @@ class ViewAllMissions(tornado.web.RequestHandler):
 class Assassinate(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     def get(self):
-        item_id = self.get_argument('itemid')
-        description = self.get_argument('description', '')
-
+        username = self.get_argument('username')
+        game_id = self.get_argument('game_id')
+        shot_picture = None
+        mission_id = self.get_argument('mission_id', None)
         session = Session()
         try:
-            item = dbutils.get_or_create(session, Item, item_id=item_id)
-            item.description = description
-            session.add(item)
-            session.flush()
-            session.commit()
             finish_string = "Item added"
 #            completed_items = session.Query(ItemCompletion).filter()
         except Exception, e:

@@ -41,13 +41,13 @@ class Application(tornado.web.Application):
 			(r"/game/kills/view", GameActionHandlers.ViewKills),
 			(r"/game/join", GameActionHandlers.JoinGame),
 			
-			(r"/game/powerup/buy", PowerupHandlers.StatsHandler),
-			(r"/game/powerup/activate", PowerupHandlers.StatsHandler),
-			(r"/game/powerup/inventory", PowerupHandlers.StatsHandler),
-			(r"/game/powerup/viewenabled", PowerupHandlers.StatsHandler),
+			(r"/game/powerup/buy", PowerupHandlers.BuyPowerup),
+			(r"/game/powerup/activate", PowerupHandlers.ActivatePowerup),
+			(r"/game/powerup/inventory", PowerupHandlers.Inventory),
+			(r"/game/powerup/viewenabled", PowerupHandlers.ViewEnabled),
 			
-			(r"/game/master/kick", GameMasterHandlers.StatsHandler),
-			(r"/game/master/grantpowerup", GameMasterHandlers.StatsHandler),
+			(r"/game/master/kick", GameMasterHandlers.Kick),
+			(r"/game/master/grantpowerup", GameMasterHandlers.GrantPowerup),
 			
 		]
 		settings = dict(

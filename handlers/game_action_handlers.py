@@ -74,6 +74,7 @@ class Assassinate(tornado.web.RequestHandler):
         username = self.get_argument('username')
         game_id = self.get_argument('game_id')
         shot_picture = None
+        target_username = self.
         mission_id = self.get_argument('mission_id', None)
         session = Session()
         try:

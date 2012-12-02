@@ -9,8 +9,10 @@ class TestGameplay(BaseTest):
         game_master = make_users(1)[0]
         self.session.add(game_master)
         self.session.flush()
-        game = Game(title='test game', password='testpassword', starting_money=3, game_master_id=game_master.id)
+        game = Game(title='test game', password='testpassword', starting_money=3)
         self.session.add(game)
+        self.session.flush()
+        game.add_game_master(game_master)
         games_from_db = self.session.query(Game).all()
         self.assertEqual(1, len(games_from_db))
         self.assertEqual(game, games_from_db[0]) 
@@ -19,6 +21,7 @@ class TestGameplay(BaseTest):
         #Don't start the game yet; make sure no missions exist until we start.
         players = make_users(3)
         self.session.add_all(players)
+        self.session.flush()
         game.add_users(players)
         self.assertEqual(0, len(game.get_missions()))
         game.start()

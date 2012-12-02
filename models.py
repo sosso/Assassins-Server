@@ -78,28 +78,45 @@ class UserGame(Base):
     game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
     money = Column(Integer, nullable=False)
     alive = Column(Boolean)
+    is_game_master = Column(Boolean, default=False, nullable=True)
     
     user = relationship(User, primaryjoin=User.id == user_id)
     
-    def __init__(self, user_id, game_id, money=DEFAULT_STARTING_MONEY, alive=True, target_user_id=None):
+    def __init__(self, user_id, game_id, money=DEFAULT_STARTING_MONEY, alive=True, target_user_id=None, is_game_master=True):
         self.user_id = user_id
         self.game_id = game_id
         self.alive = alive
         self.money = money
+        self.is_game_master = is_game_master
 
     def __repr__(self):
         return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
-    
+
 class Game(Base):
     __tablename__ = 'game'
     #column definitions
     logger = logging.getLogger('Game')
-    id = Column(u'id', INTEGER(), primary_key=True)
-    title = Column(u'title', VARCHAR(length=255))
-    password = Column(u'password', VARCHAR(length=255))
-    starting_money = Column(u'starting_money', Integer())
+    id = Column(INTEGER(), primary_key=True)
+    title = Column(VARCHAR(length=255))
+    password = Column(VARCHAR(length=255))
+    starting_money = Column(Integer())
     max_shot_interval_minutes = Column(Integer(), default=90)
+    started = Column(Boolean(), default=False)
     
+    def start(self):
+        if len(self.get_players()) > 1 and len(self.game_masters) > 0:
+            self.assign_initial_missions()
+            self.started = True
+        else:
+            pass
+    
+    def _get_game_masters(self):
+        access_objects = object_session(self).query(UserGame).filter_by(game_id=self.id, is_game_master=True).all() 
+        gm_users = []
+        for ao in access_objects:
+            gm_users.append(ao.user)
+        return gm_users
+    game_masters = property(_get_game_masters)
     
     def _get_user_list(self):
         access_objects = self._get_user_statuses()
@@ -108,6 +125,9 @@ class Game(Base):
             users_list.append(usergame.user)
         return users_list
     user_list = property(_get_user_list)
+    
+    def get_players(self):
+        return list(set(self.user_list) - set(self.game_masters))
     
     def _get_user_statuses(self):
         return object_session(self).query(UserGame).filter_by(game_id=self.id).all()
@@ -124,12 +144,35 @@ class Game(Base):
         for user in users_list:
             self.add_user(user)
     
-    def add_user(self, user):
-        get_or_create(Session(), UserGame, user_id=user.id, game_id=self.id)
-        Session.flush()
+    def add_user(self, user, is_game_master=False):
+        s = Session()
+        get_or_create(s, UserGame, user_id=user.id, game_id=self.id, is_game_master=is_game_master)
+        
+    def add_game_master(self, user=None, user_id=None):
+        if user is not None and user in self.user_list:
+            get_usergame(user.username, self.id).is_game_master = True
+        elif user is not None and user not in self.user_list:
+            self.add_user(user, True)
+        elif user_id is not None:
+            get_or_create(Session(), UserGame, user_id=user_id, game_id=self.id)
+        
         
     def get_users(self):
         return Session().query(UserGame).filter_by(game_id=self.id).all()
+    
+    def get_missions(self):
+        return Session().query(Mission).filter_by(game_id=self.id).all()
+    
+    def assign_initial_missions(self):
+        missions = []
+        players = self.get_players()
+        missions.append(Mission(assassin_id=players[-1].id, target_id=players[0].id, game_id=self.id))
+        for index, player in enumerate(players[:-1]):
+            missions.append(Mission(assassin_id=player.id, target_id=players[index+1].id, game_id=self.id))
+        s = object_session(self)
+        s.add_all(missions)
+        s.flush()
+        
     
     def mission_completed(self, mission):
         #validate the mission belongs to this game
@@ -161,38 +204,42 @@ class Game(Base):
             self.logger.exception(e)
 
 
+def get_usergame(username, game_id):
+    return Session().query(UserGame).filter_by(username=username, game_id=game_id).one()
+
+
 def get_user(username, password):
     return Session().query(User).filter_by(username=username, password=password).one()
 
 # I don't know that we need a separate class for this.  Shot can probably encapsulate it just fine?
 # But maybe we archive this?
-#class Kill(Base):
-#    __tablename__ = 'kill'
-#
-#    id = Column(u'id', INTEGER(), primary_key=True, nullable=False)
-#
-#    game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
-#    assassin_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
-#    target_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
-#    
-#    kill_picture_url = Column(String(255), nullable=False)
-#    validation_picture = Column(String(255), nullable=True)
-#    assassin_gps = Column(String(255), nullable=True)
-#    target_gps = Column(String(255), nullable=True)
-#    timestamp = Column(DateTime, default=datetime.datetime.now)
-#    confirmed = Column(Boolean, default=False)
-#    
-#    def __init__(self, assassin_id, game_id, target_id, kill_picture_url, validation_picture=None, assassin_gps=None, target_gps=None):
-#        self.assassin_id = assassin_id
-#        self.game_id = game_id
-#        self.target_id = target_id
-#        self.kill_picture_url = kill_picture_url
-#        self.validation_picture = validation_picture
-#        self.assassin_gps = assassin_gps
-#        self.target_gps = target_gps
-#
-#    def __repr__(self):
-#        return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
+class Kill(Base):
+    __tablename__ = 'kill'
+
+    id = Column(u'id', INTEGER(), primary_key=True, nullable=False)
+
+    game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
+    assassin_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
+    target_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
+    
+    kill_picture_url = Column(String(255), nullable=False)
+    validation_picture = Column(String(255), nullable=True)
+    assassin_gps = Column(String(255), nullable=True)
+    target_gps = Column(String(255), nullable=True)
+    timestamp = Column(DateTime, default=datetime.datetime.now)
+    confirmed = Column(Boolean, default=False)
+    
+    def __init__(self, assassin_id, game_id, target_id, kill_picture_url, validation_picture=None, assassin_gps=None, target_gps=None):
+        self.assassin_id = assassin_id
+        self.game_id = game_id
+        self.target_id = target_id
+        self.kill_picture_url = kill_picture_url
+        self.validation_picture = validation_picture
+        self.assassin_gps = assassin_gps
+        self.target_gps = target_gps
+
+    def __repr__(self):
+        return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
 
 class Mission(Base):
     __tablename__ = 'mission'

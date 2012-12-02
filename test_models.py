@@ -30,14 +30,19 @@ class TestGame(BaseTest):
         game_master = make_users(1)[0]
         self.session.add(game_master)
         self.session.flush()
-        game = Game(title='test game', password='testpassword', starting_money=3, game_master_id=game_master.id)
+        game = Game(title='test game', password='testpassword', starting_money=3)
         self.session.add(game)
+        self.session.flush()
+        game.add_game_master(user_id=game_master.id)
         games_from_db = self.session.query(Game).all()
         self.assertEqual(1, len(games_from_db))
         self.assertEqual(game, games_from_db[0]) 
     
     def test_game_start(self):
         game = make_game(self.session)
+        game_master = make_users(1)[0]
+        self.session.add(game_master)
+        self.session.flush()
         self.assertFalse(game.started)
         
         #There's only one user, so the game can't start
@@ -47,12 +52,18 @@ class TestGame(BaseTest):
         #Add a user, and the game still can't start because gamemasters can't play
         users = make_users(2)
         self.session.add_all(users)
+        self.session.flush()
         game.add_user(users[0])
         game.start()
         self.assertFalse(game.started)
         
-        #Add the second player, and now we can start because we have two non-gamemaster players
+        #Add the second player, can't start because although there's 2 players, there's no gamemaster
         game.add_user(users[1])
+        game.start()
+        self.assertFalse(game.started)
+        
+        #Add game master and we can finally play
+        game.add_game_master(game_master)
         game.start()
         self.assertTrue(game.started)
         

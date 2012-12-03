@@ -1,5 +1,6 @@
 from dbutils import get_or_create
-from game_constants import DEFAULT_STARTING_MONEY
+from game_constants import DEFAULT_STARTING_MONEY, MAX_SHOT_INTERVAL_MINUTES, \
+    MAX_SHOTS_PER_24_HOURS
 from sqlalchemy import Column, Integer, VARCHAR, INTEGER
 from sqlalchemy.engine import create_engine
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -79,10 +80,12 @@ class UserGame(Base):
     money = Column(Integer, nullable=False)
     alive = Column(Boolean)
     is_game_master = Column(Boolean, default=False, nullable=True)
+    max_shot_interval_minutes = Column(Integer(), default=90)
+    max_shots_per_24_hours = Column(Integer(), default=3)
     
     user = relationship(User, primaryjoin=User.id == user_id)
     
-    def __init__(self, user_id, game_id, money=DEFAULT_STARTING_MONEY, alive=True, target_user_id=None, is_game_master=True):
+    def __init__(self, user_id, game_id, money=DEFAULT_STARTING_MONEY, alive=True, target_user_id=None, is_game_master=True, max_shot_interval_minutes=MAX_SHOT_INTERVAL_MINUTES, max_shots_per_24_hours=MAX_SHOTS_PER_24_HOURS):
         self.user_id = user_id
         self.game_id = game_id
         self.alive = alive
@@ -100,8 +103,10 @@ class Game(Base):
     title = Column(VARCHAR(length=255))
     password = Column(VARCHAR(length=255))
     starting_money = Column(Integer())
-    max_shot_interval_minutes = Column(Integer(), default=90)
+    max_shot_interval_minutes = Column(Integer(), default=MAX_SHOT_INTERVAL_MINUTES)
+    max_shots_per_24_hours = Column(Integer(), default=MAX_SHOTS_PER_24_HOURS)
     started = Column(Boolean(), default=False)
+    over = Column(Boolean(), default=False)
     
     def start(self):
         if len(self.get_players()) > 1 and len(self.game_masters) > 0:
@@ -118,6 +123,22 @@ class Game(Base):
         return gm_users
     game_masters = property(_get_game_masters)
     
+    def get_winner(self):
+        try:
+            players = self.player_statuses
+            winner = None
+            for player in players:
+                if player.alive:
+                    if winner is None:
+                        winner = player
+                    else:
+                        winner = None
+                        break
+        except Exception as e:
+            return None
+        return winner.user
+#    winner = property(_get_winner)
+    
     def _get_user_list(self):
         access_objects = self._get_user_statuses()
         users_list = []
@@ -133,6 +154,9 @@ class Game(Base):
         return object_session(self).query(UserGame).filter_by(game_id=self.id).all()
     user_statuses = property(_get_user_statuses)
     
+    def _get_player_statuses(self):
+        return object_session(self).query(UserGame).filter_by(game_id=self.id, is_game_master=False).all()
+    player_statuses = property(_get_player_statuses)
     
     def Game(self, password, title, starting_money=DEFAULT_STARTING_MONEY, max_shot_interval_minutes=90):
         self.title = title
@@ -146,7 +170,7 @@ class Game(Base):
     
     def add_user(self, user, is_game_master=False):
         s = Session()
-        get_or_create(s, UserGame, user_id=user.id, game_id=self.id, is_game_master=is_game_master)
+        get_or_create(s, UserGame, user_id=user.id, game_id=self.id, is_game_master=is_game_master, max_shots_per_24_hours=self.max_shots_per_24_hours, max_shot_interval_minutes=self.max_shot_interval_minutes)
         
     def add_game_master(self, user=None, user_id=None):
         if user is not None and user in self.user_list:
@@ -168,7 +192,7 @@ class Game(Base):
         players = self.get_players()
         missions.append(Mission(assassin_id=players[-1].id, target_id=players[0].id, game_id=self.id))
         for index, player in enumerate(players[:-1]):
-            missions.append(Mission(assassin_id=player.id, target_id=players[index+1].id, game_id=self.id))
+            missions.append(Mission(assassin_id=player.id, target_id=players[index + 1].id, game_id=self.id))
         s = object_session(self)
         s.add_all(missions)
         s.flush()
@@ -180,20 +204,25 @@ class Game(Base):
             pass
             #Get the target's mission to reassign it to the assassin
             targets_mission = object_session(self).query(Mission).filter_by(game_id=self.id, assassin_id=mission.target_id, completed_timestamp=None).one()
+            mission.completed_timestamp = datetime.datetime.now()
+
+            #Mark the target as dead
+            target_usergame = get_usergame(mission.target_id, mission.game_id)
+            target_usergame.alive = False
             if targets_mission.target_id == mission.assassin_id: #meaning the players in question were targeting each other, and that the game should probably be over
                 self.game_over()
             else:
-                self.reassign_mission(targets_mission)
+                self.reassign_mission(new_assassin_id=mission.assassin_id, mission_to_reassign=targets_mission)
         else:
             raise Exception("Supplied mission does not belong to this game!")
     
     #TODO stub
     def game_over(self):
-        pass
+        self.over = True
         
-    def reassign_mission(self, new_assassin_user, mission_to_reassign):
+    def reassign_mission(self, new_assassin_id, mission_to_reassign):
         #create a new mission with the proper assassin and target
-        reassigned_mission = Mission(assassin_id=new_assassin_user.id, target_id=mission_to_reassign.target_id, game_id=self.id)
+        reassigned_mission = Mission(assassin_id=new_assassin_id, target_id=mission_to_reassign.target_id, game_id=self.id)
         session = object_session(self)
         try:
             session.add(reassigned_mission)
@@ -204,9 +233,9 @@ class Game(Base):
             self.logger.exception(e)
 
 
-def get_usergame(username, game_id):
-    return Session().query(UserGame).filter_by(username=username, game_id=game_id).one()
-
+def get_usergame(user_id, game_id):
+        return Session().query(UserGame).filter_by(user_id=user_id, game_id=game_id).one()
+        
 
 def get_user(username, password):
     return Session().query(User).filter_by(username=username, password=password).one()
@@ -280,18 +309,67 @@ class Shot(Base):
     shot_picture_url = Column(String(255), nullable=False)
     assassin_gps = Column(String(255), nullable=True)
     
-    timestamp = Column(DateTime, default=datetime.datetime.now)
+    timestamp = Column(DateTime, default=datetime.datetime.now())
+    valid = Column(Boolean, default=False)#we'll need to ignore invalid shots when calculating shot rate
     
-    def __init__(self, assassin_id, target_id, game_id, shot_picture, assassin_gps=None, timestamp=datetime.datetime.now):
+    def __init__(self, assassin_id, target_id, game_id, shot_picture, assassin_gps=None, timestamp=datetime.datetime.now()):
         self.assassin_id = assassin_id
         self.target_id = target_id
         self.game_id = game_id
         self.shot_picture_url = shot_picture
         self.assassin_gps = assassin_gps
         self.timestamp = timestamp
+        
+    #A shot is valid if the following conditions are met:
+    # 0: both players are alive
+    # 1: the assassin had a mission targeting the target
+    # 2: the assassin has remaining shots for the day
+    # 3: the assassin does not need to wait for another shot
+    
+    def is_valid(self):
+        
+        try:
+            #Step 0:  are both players alive?
+            target_usergame = get_usergame(user_id=self.target_id, game_id=self.game_id)
+            assassin_usergame = get_usergame(user_id=self.assassin_id, game_id=self.game_id)
+            if not target_usergame.alive or not assassin_usergame.alive:
+                return False
+            
+            #Step 1:  is the assassin targeting this person?
+            mission = get_mission(assassin_id=self.assassin_id, target_id=self.target_id, game_id=self.game_id)
+            
+            #Step 2:  does the assassin have shots remaining?
+            shots = get_shots_since(timestamp=datetime.datetime.today() - datetime.timedelta(hours=24), user_id=self.assassin_id, game_id=self.game_id)
+            if len(shots) >= assassin_usergame.max_shots_per_24_hours:
+                return False
+            
+            #Step 3: If they have shots remaining, do they need to wait?
+            if len(shots) != 0:
+                most_recent_shot = shots[0] #their most recent shot 
+                if most_recent_shot.timestamp + datetime.timedelta(minutes=assassin_usergame.max_shot_interval_minutes) >= self.timestamp:
+                    return False
+            
+            self.valid = True
+            return True
+        except Exception as e:
+            self.valid = False
+            return False
 
     def set_kill_id(self, kill_id):
         self.kill_id = kill_id
+
+def get_shots_since(timestamp, user_id, game_id):
+    shots = Session().query(Shot).filter_by(assassin_id=user_id, game_id=game_id, valid=True).all()
+#    filter(timestamp >= timestamp)
+    shots_to_return = []
+    for shot in shots:
+        if shot.timestamp >= timestamp:
+            shots_to_return.append(shot)
+    
+    return sorted(shots_to_return, key=lambda shot: shot.timestamp, reverse=True) #sorted most recent - oldest 
+
+def get_mission(assassin_id, target_id, game_id):
+    return Session().query(Mission).filter_by(assassin_id=assassin_id, target_id=target_id, game_id=game_id, completed_timestamp=None).one()
 
 class Item(Base):
     __tablename__ = 'item'

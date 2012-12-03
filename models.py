@@ -26,11 +26,6 @@ sm = sessionmaker(bind=engine, autoflush=True, autocommit=False, expire_on_commi
 Session = scoped_session(sm)
 logging.basicConfig()
 
-def clear_all():
-    for table in reversed(Base.metadata.sorted_tables):
-        engine.execute(table.delete())
-
-
 class User(Base):
     __tablename__ = 'user'
     logger = logging.getLogger('User')
@@ -48,29 +43,6 @@ class User(Base):
         self.username = username
         self.password = password
         self.profile_picture = profile_picture
-
-def create_user(username, password, profile_picture_binary):
-    profile_picture_url = imgur.upload(file_body=profile_picture_binary)
-    s = Session()
-    user = s.query(User).filter_by(username=username).first()
-    if user is not None:
-        raise Exception("Account already exists")
-    else: 
-        user = User(password=password, username=username, profile_picture=profile_picture_url)
-        s.add(user)
-        s.commit()
-        s.flush()
-
-def login(username, password):
-    logger = logging.getLogger('login')
-    session = Session()
-    try:
-        users = session.query(User).filter_by(username=username, password=password).all()
-        user = session.query(User).filter_by(username=username, password=password).one()
-    except Exception, e:
-        logger.exception(e)
-        user = None
-    return user
 
 class UserGame(Base):
     __tablename__ = 'user_game'
@@ -232,14 +204,6 @@ class Game(Base):
             session.rollback()
             self.logger.exception(e)
 
-
-def get_usergame(user_id, game_id):
-        return Session().query(UserGame).filter_by(user_id=user_id, game_id=game_id).one()
-        
-
-def get_user(username, password):
-    return Session().query(User).filter_by(username=username, password=password).one()
-
 # I don't know that we need a separate class for this.  Shot can probably encapsulate it just fine?
 # But maybe we archive this?
 class Kill(Base):
@@ -294,8 +258,6 @@ class Mission(Base):
 
     def __repr__(self):
         return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
-
-
 
 class Shot(Base):
     __tablename__ = 'shot'
@@ -371,23 +333,38 @@ def get_shots_since(timestamp, user_id, game_id):
 def get_mission(assassin_id, target_id, game_id):
     return Session().query(Mission).filter_by(assassin_id=assassin_id, target_id=target_id, game_id=game_id, completed_timestamp=None).one()
 
-class Item(Base):
-    __tablename__ = 'item'
-    id = Column(Integer, primary_key=True)
-    item_id = Column(Integer)
-    description = Column(VARCHAR(length=255))
+def get_usergame(user_id, game_id):
+        return Session().query(UserGame).filter_by(user_id=user_id, game_id=game_id).one()
+        
+def get_user(username, password):
+    return Session().query(User).filter_by(username=username, password=password).one()
 
-    def __init__(self, item_id, description=''):
-        self.item_id = item_id
-        self.description = description
+def login(username, password):
+    logger = logging.getLogger('login')
+    session = Session()
+    try:
+        users = session.query(User).filter_by(username=username, password=password).all()
+        user = session.query(User).filter_by(username=username, password=password).one()
+    except Exception, e:
+        logger.exception(e)
+        user = None
+    return user
 
-    def __repr__(self):
-        return '<Item %d>' % self.item_id
+def create_user(username, password, profile_picture_binary):
+    profile_picture_url = imgur.upload(file_body=profile_picture_binary)
+    s = Session()
+    user = s.query(User).filter_by(username=username).first()
+    if user is not None:
+        raise Exception("Account already exists")
+    else: 
+        user = User(password=password, username=username, profile_picture=profile_picture_url)
+        s.add(user)
+        s.commit()
+        s.flush()
 
-    def serialize(self):
-        return {'Item number': self.item_id,
-                'Description': self.description
-                }
+def clear_all():
+    for table in reversed(Base.metadata.sorted_tables):
+        engine.execute(table.delete())
 
 Base.metadata.create_all(engine)
 

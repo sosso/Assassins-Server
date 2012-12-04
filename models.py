@@ -238,6 +238,19 @@ class Kill(Base):
     def __repr__(self):
         return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
 
+    def get_api_response_dict(self):
+        target = get_user(user_id=self.target_id)
+        response_dict = {'assassin_username':target.username, \
+                'shot_picture':self.kill_picture_url, \
+                'victim_username':target.username, \
+                'time': self.timestamp.strftime("%Y-%m-%d %H:%M:%S"), \
+                }
+        if self.assassin_gps is not None:
+            response_dict['location'] = self.assassin_gps
+        if self.completed_timestamp is not None:
+            response_dict['completed'] = self.completed_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        return response_dict
+
 class Mission(Base):
     __tablename__ = 'mission'
     id = Column(u'id', INTEGER(), primary_key=True, nullable=False)
@@ -382,6 +395,19 @@ def get_missions(game_id, assassin_username=None, assassin_id=None):
     
     return query.all()
 
+def get_kills(game_id, assassin_username=None, assassin_id=None):
+    query = Session().query(Kill).filter_by(game_id=game_id)
+    
+    if assassin_username is not None:
+        user = get_user(username=assassin_username)
+        assassin_id = user.id
+        
+    if assassin_id is not None:
+        query = query.filter_by(id=assassin_id)
+    
+    return query.all()
+
+
 def get_usergame(user_id, game_id):
         return Session().query(UserGame).filter_by(user_id=user_id, game_id=game_id).one()
         
@@ -401,7 +427,15 @@ def get_user(username=None, password=None, user_id=None):
         query = query.filter_by(password=password)
     
     return query.one()
+
+def get_game(game_id, game_password=None):
+    query = Session().query(Game).filter_by(game_id=game_id)
+
+    if game_password is not None:
+        query = query.filter_by(password=game_password)
     
+    return query.one()
+
     
 def login(username, password):
     logger = logging.getLogger('login')

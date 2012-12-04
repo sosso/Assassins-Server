@@ -1,5 +1,6 @@
 from handlers.response_utils import get_response_dict
-from models import User, Session, UserGame, get_user, Game, get_mission
+from models import User, Session, UserGame, get_user, Game, get_mission, \
+    get_missions, get_game, get_kills
 import dbutils
 import game_constants
 import simplejson
@@ -49,6 +50,8 @@ class ViewMission(tornado.web.RequestHandler):
             Session.remove()
             self.finish(simplejson.dumps(return_dict))
 
+
+#TODO handle game master case
 class ViewAllMissions(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     def get(self):
@@ -56,15 +59,19 @@ class ViewAllMissions(tornado.web.RequestHandler):
         game_id = self.get_argument('game_id')
         session = Session()
         try:
-            user = dbutils.get_or_create(session, User, username=username)
-            final_string = "User creation successful!"
-        except Exception, e:
+            missions_json_array = []
+            missions_from_db = get_missions(assassin_username=username, game_id=game_id)
+            for mission in missions_from_db:
+                missions_json_array.append(mission.get_api_response_dict())
+            return_obj = missions_json_array
+        except Exception as e:
             session.rollback()
-            final_string = "User creation failed."
+            return_dict = []
         finally:
             Session.remove()
-            self.finish(final_string)
+            self.finish(simplejson.dumps(return_dict))
 
+#TODO
 class Assassinate(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     def get(self):
@@ -84,6 +91,7 @@ class Assassinate(tornado.web.RequestHandler):
             Session.remove()
             self.finish(finish_string)
 
+#TODO
 class DisputeHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     def get(self):
@@ -92,12 +100,13 @@ class DisputeHandler(tornado.web.RequestHandler):
 
         session = Session()
         try:
-            item = dbutils.get_or_create(session, Item, item_id=item_id)
-            item.description = description
-            session.add(item)
-            session.flush()
-            session.commit()
-            finish_string = "Item added"
+#            item = dbutils.get_or_create(session, Item, item_id=item_id)
+#            item.description = description
+#            session.add(item)
+#            session.flush()
+#            session.commit()
+#            finish_string = "Item added"
+            pass
 #            completed_items = session.Query(ItemCompletion).filter()
         except Exception, e:
             session.rollback()
@@ -109,44 +118,40 @@ class DisputeHandler(tornado.web.RequestHandler):
 class ViewKills(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     def get(self):
-        item_id = self.get_argument('itemid')
-        description = self.get_argument('description', '')
+        game_id = self.get_argument('game_id')
 
         session = Session()
         try:
-            item = dbutils.get_or_create(session, Item, item_id=item_id)
-            item.description = description
-            session.add(item)
-            session.flush()
-            session.commit()
-            finish_string = "Item added"
-#            completed_items = session.Query(ItemCompletion).filter()
+            kills_json_array = []
+            kills_from_db = get_kills(game_id=game_id)
+            for kill in kills_from_db:
+                kills_json_array.append(kill.get_api_response_dict())
+            return_obj = kills_json_array
         except Exception, e:
             session.rollback()
-            finish_string = "Item not added"
+            return_obj = []
         finally:
             Session.remove()
-            self.finish(finish_string)
+            self.finish(simplejson.dumps(return_obj))
 
 class JoinGame(tornado.web.RequestHandler):
     @tornado.web.asynchronous
-    def get(self):
-        item_id = self.get_argument('itemid')
-        description = self.get_argument('description', '')
+    def post(self):
+        game_id = self.get_argument('game_id')
+        game_password = self.get_argument('game_password')
+        username = self.get_argument('username')
 
         session = Session()
         try:
-            item = dbutils.get_or_create(session, Item, item_id=item_id)
-            item.description = description
-            session.add(item)
-            session.flush()
-            session.commit()
-            finish_string = "Item added"
+            user = get_user(username)
+            game = get_game(game_id=game_id, game_password=game_password)
+            game.add_user(user)
+            response_dict = get_response_dict(True)
 #            completed_items = session.Query(ItemCompletion).filter()
-        except Exception, e:
+        except Exception as e:
             session.rollback()
-            finish_string = "Item not added"
+            response_dict = get_response_dict(False, e.msg)
         finally:
             Session.remove()
-            self.finish(finish_string)
+            self.finish(simplejson.dumps(response_dict))
             

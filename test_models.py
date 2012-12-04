@@ -1,12 +1,7 @@
-from models import User, Game, Session, engine, Base, login, clear_all, Kill, \
+from models import User, Game, login, Kill, \
     Mission, Shot
-from sqlalchemy.engine import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import scoped_session
-from sqlalchemy.orm.session import sessionmaker
 from test_utils import BaseTest, make_users, make_game
 import datetime
-import dbutils
 import unittest
 
 class TestUser(BaseTest):

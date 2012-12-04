@@ -6,6 +6,7 @@ from sqlalchemy.engine import create_engine
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref, scoped_session
+from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.session import sessionmaker, object_session
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.sql.expression import and_
@@ -15,6 +16,7 @@ import dbutils
 import imgur
 import logging
 import os
+import sqlalchemy
 
 if bool(os.environ.get('TEST_RUN', False)):
     engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
@@ -145,7 +147,9 @@ class Game(Base):
         get_or_create(s, UserGame, user_id=user.id, game_id=self.id, is_game_master=is_game_master, max_shots_per_24_hours=self.max_shots_per_24_hours, max_shot_interval_minutes=self.max_shot_interval_minutes)
         
     def add_game_master(self, user=None, user_id=None):
-        if user is not None and user in self.user_list:
+        if user is None and user_id is None:
+            raise Exception("No user or user_id found")
+        elif user is not None and user in self.user_list:
             get_usergame(user.username, self.id).is_game_master = True
         elif user is not None and user not in self.user_list:
             self.add_user(user, True)
@@ -258,6 +262,16 @@ class Mission(Base):
 
     def __repr__(self):
         return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
+    
+    def get_api_response_dict(self):
+        target = get_user(user_id=self.target_id)
+        response_dict = {'username':target.username, \
+                'profile_picture':target.profile_picture, \
+                'assigned': self.assignment_timestamp.strftime("%Y-%m-%d %H:%M:%S")}
+        if self.completed_timestamp is not None:
+            response_dict['completed'] = self.completed_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        return response_dict
+    
 
 class Shot(Base):
     __tablename__ = 'shot'
@@ -330,20 +344,69 @@ def get_shots_since(timestamp, user_id, game_id):
     
     return sorted(shots_to_return, key=lambda shot: shot.timestamp, reverse=True) #sorted most recent - oldest 
 
-def get_mission(assassin_id, target_id, game_id):
-    return Session().query(Mission).filter_by(assassin_id=assassin_id, target_id=target_id, game_id=game_id, completed_timestamp=None).one()
+def get_mission(game_id, assassin_username=None, assassin_id=None, target_id=None, mission_id=None):
+    if assassin_username is None and assassin_id is None:
+        raise Exception("Must supply either an assassin_username or an assassin_id")
+    
+    query = Session().query(Mission).filter_by(game_id=game_id, completed_timestamp=None)
+    
+    if mission_id is not None:
+        query = query.filter_by(id=mission_id)
+    
+    if assassin_username is not None:
+        user = get_user(username=assassin_username)
+        assassin_id = user.id
+    
+    query = query.filter_by(assassin_id=assassin_id)
+    
+    if target_id is not None:
+        query = query.filter_by(target_id=target_id)
+    try:
+        return_mission = query.one()
+        return return_mission
+    except NoResultFound:
+        raise Exception("No mission found")
+    
+def get_missions(game_id, assassin_username=None, assassin_id=None):
+    if assassin_username is None and assassin_id is None:
+        raise Exception("Must supply either an assassin_username or an assassin_id")
+    
+    query = Session().query(Mission).filter_by(game_id=game_id)
+    
+    if assassin_username is not None:
+        user = get_user(username=assassin_username)
+        assassin_id = user.id
+        
+    if assassin_id is not None:
+        query = query.filter_by(id=assassin_id)
+    
+    return query.all()
 
 def get_usergame(user_id, game_id):
         return Session().query(UserGame).filter_by(user_id=user_id, game_id=game_id).one()
         
-def get_user(username, password):
-    return Session().query(User).filter_by(username=username, password=password).one()
+def get_user(username=None, password=None, user_id=None):
+    if username is None and user_id is None:
+        return None
+    
+    query = Session().query(User)
 
+    if username is not None:
+        query = query.filter_by(username=username)
+    
+    if user_id is not None:
+        query = query.filter_by(id=user_id)
+    
+    if password is not None:
+        query = query.filter_by(password=password)
+    
+    return query.one()
+    
+    
 def login(username, password):
     logger = logging.getLogger('login')
     session = Session()
     try:
-        users = session.query(User).filter_by(username=username, password=password).all()
         user = session.query(User).filter_by(username=username, password=password).one()
     except Exception, e:
         logger.exception(e)

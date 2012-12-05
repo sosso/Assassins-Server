@@ -10,6 +10,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.session import sessionmaker, object_session
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import String, Boolean, DateTime
+from passlib.hash import sha256_crypt
 import datetime
 import imgur
 import logging
@@ -40,8 +41,11 @@ class User(Base):
     
     def User(self, password, username, profile_picture):
         self.username = username
-        self.password = password
+        self.password = sha256_crypt.encrypt(password)
         self.profile_picture = profile_picture
+    
+    def valid_password(self, password):
+        return sha256_crypt.verify(password, self.password)
 
 class Game(Base):
     __tablename__ = 'game'
@@ -210,7 +214,7 @@ class UserGame(Base):
     def get_api_response_dict(self):
         response_dict = {'game_id':self.game_id, \
                 'game_password':self.game.password, \
-                'game_friendly_name': self.game.title,\
+                'game_friendly_name': self.game.title, \
                 'alive':self.alive}
         response_dict['completed'] = self.completed_timestamp.strftime("%Y-%m-%d %H:%M:%S")
         return response_dict

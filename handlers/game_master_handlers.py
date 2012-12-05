@@ -1,3 +1,4 @@
+from handlers.response_utils import auth_required
 from models import User, Session, UserGame
 from pkg_resources import StringIO
 from sqlalchemy.sql.functions import random
@@ -14,6 +15,7 @@ item_id
 <file>
 """
 class Kick(tornado.web.RequestHandler):
+    @auth_required
     @tornado.web.asynchronous
     def post(self):
         username = self.get_argument('username')
@@ -33,6 +35,7 @@ class Kick(tornado.web.RequestHandler):
 username
 """
 class GrantPowerup(tornado.web.RequestHandler):
+    @auth_required
     @tornado.web.asynchronous
     def post(self):
         game_id = self.get_argument('game_id')

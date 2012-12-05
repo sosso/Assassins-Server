@@ -1,6 +1,6 @@
-from handlers.response_utils import get_response_dict
-from models import Session, get_user, Game, get_mission, \
-    get_missions, get_game, get_kills, Shot, get_usergames
+from handlers.response_utils import get_response_dict, auth_required
+from models import Session, get_user, Game, get_mission, get_missions, get_game, \
+    get_kills, Shot, get_usergames
 import game_constants
 import imgur
 import simplejson
@@ -10,6 +10,7 @@ import tornado.web
 
 class CreateGame(tornado.web.RequestHandler):
     @tornado.web.asynchronous
+    @auth_required
     def post(self):
         friendly_name = self.get_argument('friendly_name')
         game_master_username = self.get_argument('game_master_username')
@@ -32,9 +33,9 @@ class CreateGame(tornado.web.RequestHandler):
             Session.remove()
             self.finish(simplejson.dumps(result_dict))
 
-
 class ViewMission(tornado.web.RequestHandler):
     @tornado.web.asynchronous
+    @auth_required
     def get(self):
         username = self.get_argument('username')
         game_id = self.get_argument('game_id')
@@ -50,10 +51,10 @@ class ViewMission(tornado.web.RequestHandler):
             Session.remove()
             self.finish(simplejson.dumps(return_dict))
 
-
 #TODO handle game master case
 class ViewAllMissions(tornado.web.RequestHandler):
     @tornado.web.asynchronous
+    @auth_required
     def get(self):
         username = self.get_argument('username')
         game_id = self.get_argument('game_id')
@@ -73,6 +74,7 @@ class ViewAllMissions(tornado.web.RequestHandler):
 
 class Assassinate(tornado.web.RequestHandler):
     @tornado.web.asynchronous
+    @auth_required
     def post(self):
         username = self.get_argument('username')
         game_id = self.get_argument('game_id')
@@ -107,6 +109,7 @@ class Assassinate(tornado.web.RequestHandler):
 
 #TODO
 class DisputeHandler(tornado.web.RequestHandler):
+    @auth_required
     @tornado.web.asynchronous
     def get(self):
         item_id = self.get_argument('itemid')
@@ -123,6 +126,7 @@ class DisputeHandler(tornado.web.RequestHandler):
             self.finish(finish_string)
 
 class ViewKills(tornado.web.RequestHandler):
+    @auth_required
     @tornado.web.asynchronous
     def get(self):
         game_id = self.get_argument('game_id')
@@ -142,6 +146,7 @@ class ViewKills(tornado.web.RequestHandler):
             self.finish(simplejson.dumps(return_obj))
 
 class GetListOfJoinedOrJoinGame(tornado.web.RequestHandler):
+    @auth_required
     @tornado.web.asynchronous
     def get(self):
         username = self.get_argument('username')
@@ -159,6 +164,8 @@ class GetListOfJoinedOrJoinGame(tornado.web.RequestHandler):
             Session.remove()
             self.finish(simplejson.dumps(response_obj))
     
+    @auth_required
+    @tornado.web.asynchronous
     def post(self):
         game_id = self.get_argument('game_id')
         game_password = self.get_argument('game_password')

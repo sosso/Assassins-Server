@@ -51,6 +51,8 @@ class Application(tornado.web.Application):
 			template_path=os.path.join(os.path.dirname(__file__), "templates"),
 			static_path=os.path.join(os.path.dirname(__file__), "static"),
 			debug=True,
+			facebook_secret="dc81b42a8501790580fef05bc11001ae",
+			facebook_api_key="383205491767592",
 		)
 		tornado.web.Application.__init__(self, handlers, **settings)
 

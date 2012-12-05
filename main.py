@@ -39,7 +39,7 @@ class Application(tornado.web.Application):
 			(r"/game/assassinate", GameActionHandlers.Assassinate),
 			(r"/game/disputes", GameActionHandlers.DisputeHandler),
 			(r"/game/kills/view", GameActionHandlers.ViewKills),
-			(r"/game/join", GameActionHandlers.JoinGame),
+			(r"/game", GameActionHandlers.GetListOfJoinedOrJoinGame),
 			
 			(r"/game/powerup/buy", PowerupHandlers.BuyPowerup),
 			(r"/game/powerup/activate", PowerupHandlers.ActivatePowerup),
@@ -74,7 +74,6 @@ class MainHandler(tornado.web.RequestHandler):
 		)
 
 
-# RAMMING SPEEEEEEED!
 def main():
 	tornado.options.parse_command_line()
 	http_server = tornado.httpserver.HTTPServer(Application())

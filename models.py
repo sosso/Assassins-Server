@@ -56,8 +56,10 @@ class UserGame(Base):
     is_game_master = Column(Boolean, default=False, nullable=True)
     max_shot_interval_minutes = Column(Integer(), default=90)
     max_shots_per_24_hours = Column(Integer(), default=3)
+    has_body_double = Column(Boolean(), default=False)
     
     user = relationship(User, primaryjoin=User.id == user_id)
+    game = relationship(Game, primaryjoin=Game.id == game_id)
     
     def __init__(self, user_id, game_id, money=DEFAULT_STARTING_MONEY, alive=True, target_user_id=None, is_game_master=True, max_shot_interval_minutes=MAX_SHOT_INTERVAL_MINUTES, max_shots_per_24_hours=MAX_SHOTS_PER_24_HOURS):
         self.user_id = user_id
@@ -68,6 +70,13 @@ class UserGame(Base):
 
     def __repr__(self):
         return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
+
+    def get_api_response_dict(self):
+        response_dict = {'game_id':self.game_id, \
+                'game_password':self.game.password, \
+                'game_friendly_name': self.game.title,\
+                'alive':self.alive}
+        return response_dict
 
 class Game(Base):
     __tablename__ = 'game'
@@ -278,7 +287,7 @@ class Mission(Base):
     
     def get_api_response_dict(self):
         target = get_user(user_id=self.target_id)
-        response_dict = {'username':target.username, \
+        response_dict = {'target_username':target.username, \
                 'profile_picture':target.profile_picture, \
                 'assigned': self.assignment_timestamp.strftime("%Y-%m-%d %H:%M:%S")}
         if self.completed_timestamp is not None:
@@ -334,7 +343,13 @@ class Shot(Base):
             
             #Step 3: If they have shots remaining, do they need to wait?
             if len(shots) != 0:
-                most_recent_shot = shots[0] #their most recent shot 
+                most_recent_shot = shots[0] #their most recent shot
+                if most_recent_shot is self:
+                    if len(shots) > 1:
+                        most_recent_shot = shots[1]
+                    else:
+                        return True
+                 
                 if most_recent_shot.timestamp + datetime.timedelta(minutes=assassin_usergame.max_shot_interval_minutes) >= self.timestamp:
                     return False
             
@@ -410,6 +425,14 @@ def get_kills(game_id, assassin_username=None, assassin_id=None):
 
 def get_usergame(user_id, game_id):
         return Session().query(UserGame).filter_by(user_id=user_id, game_id=game_id).one()
+
+def get_usergames(user_id=None, username=None):
+        if user_id is None and username is None:
+            raise Exception("Must supply user_id or username")
+        
+        if user_id is None and username is not None:
+            user_id = get_user(username=username).id
+        return Session().query(UserGame).filter_by(user_id=user_id).all()
         
 def get_user(username=None, password=None, user_id=None):
     if username is None and user_id is None:

@@ -46,38 +46,6 @@ class User(Base):
         self.password = password
         self.profile_picture = profile_picture
 
-class UserGame(Base):
-    __tablename__ = 'user_game'
-
-    user_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
-    game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
-    money = Column(Integer, nullable=False)
-    alive = Column(Boolean)
-    is_game_master = Column(Boolean, default=False, nullable=True)
-    max_shot_interval_minutes = Column(Integer(), default=90)
-    max_shots_per_24_hours = Column(Integer(), default=3)
-    has_body_double = Column(Boolean(), default=False)
-    
-    user = relationship(User, primaryjoin=User.id == user_id)
-    game = relationship(Game, primaryjoin=Game.id == game_id)
-    
-    def __init__(self, user_id, game_id, money=DEFAULT_STARTING_MONEY, alive=True, target_user_id=None, is_game_master=True, max_shot_interval_minutes=MAX_SHOT_INTERVAL_MINUTES, max_shots_per_24_hours=MAX_SHOTS_PER_24_HOURS):
-        self.user_id = user_id
-        self.game_id = game_id
-        self.alive = alive
-        self.money = money
-        self.is_game_master = is_game_master
-
-    def __repr__(self):
-        return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
-
-    def get_api_response_dict(self):
-        response_dict = {'game_id':self.game_id, \
-                'game_password':self.game.password, \
-                'game_friendly_name': self.game.title,\
-                'alive':self.alive}
-        return response_dict
-
 class Game(Base):
     __tablename__ = 'game'
     #column definitions
@@ -217,6 +185,39 @@ class Game(Base):
             session.rollback()
             self.logger.exception(e)
 
+class UserGame(Base):
+    __tablename__ = 'user_game'
+
+    user_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
+    game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
+    money = Column(Integer, nullable=False)
+    alive = Column(Boolean)
+    is_game_master = Column(Boolean, default=False, nullable=True)
+    max_shot_interval_minutes = Column(Integer(), default=90)
+    max_shots_per_24_hours = Column(Integer(), default=3)
+    has_body_double = Column(Boolean(), default=False)
+    
+    user = relationship(User, primaryjoin=User.id == user_id)
+    game = relationship(Game, primaryjoin=Game.id == game_id)
+    
+    def __init__(self, user_id, game_id, money=DEFAULT_STARTING_MONEY, alive=True, target_user_id=None, is_game_master=True, max_shot_interval_minutes=MAX_SHOT_INTERVAL_MINUTES, max_shots_per_24_hours=MAX_SHOTS_PER_24_HOURS):
+        self.user_id = user_id
+        self.game_id = game_id
+        self.alive = alive
+        self.money = money
+        self.is_game_master = is_game_master
+
+    def __repr__(self):
+        return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
+
+    def get_api_response_dict(self):
+        response_dict = {'game_id':self.game_id, \
+                'game_password':self.game.password, \
+                'game_friendly_name': self.game.title,\
+                'alive':self.alive}
+        response_dict['completed'] = self.completed_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        return response_dict
+    
 # I don't know that we need a separate class for this.  Shot can probably encapsulate it just fine?
 # But maybe we archive this?
 class Kill(Base):

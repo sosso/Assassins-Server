@@ -43,7 +43,7 @@ class CreateUserHandler(tornado.web.RequestHandler):
         except Exception, e:
             session.rollback()
             result_dict['result'] = "ERROR"
-            result_dict['reason'] = e.msg
+            result_dict['reason'] = e.message
         finally:
             Session.remove()
             self.finish(simplejson.dumps(result_dict))

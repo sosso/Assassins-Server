@@ -28,7 +28,7 @@ class CreateGame(tornado.web.RequestHandler):
             result_dict['game_id'] = game.id
         except Exception as e:
             session.rollback()
-            result_dict = get_response_dict(False, e.msg)
+            result_dict = get_response_dict(False, e.message)
         finally:
             Session.remove()
             self.finish(simplejson.dumps(result_dict))
@@ -45,7 +45,7 @@ class ViewMission(tornado.web.RequestHandler):
             mission = get_mission(assassin_username=username, game_id=game_id, mission_id=mission_id)
             return_dict = mission.get_api_response_dict()
         except Exception as e:
-            return_dict = get_response_dict(False, e.msg)
+            return_dict = get_response_dict(False, e.message)
             session.rollback()
         finally:
             Session.remove()
@@ -102,7 +102,7 @@ class Assassinate(tornado.web.RequestHandler):
             session.commit()
         except Exception as e:
             session.rollback()
-            response_dict = get_response_dict(False, e.msg)
+            response_dict = get_response_dict(False, e.message)
         finally:
             Session.remove()
             self.finish(simplejson.dumps(response_dict))
@@ -179,7 +179,7 @@ class GetListOfJoinedOrJoinGame(tornado.web.RequestHandler):
             response_dict = get_response_dict(True)
         except Exception as e:
             session.rollback()
-            response_dict = get_response_dict(False, e.msg)
+            response_dict = get_response_dict(False, e.message)
         finally:
             Session.remove()
             self.finish(simplejson.dumps(response_dict))

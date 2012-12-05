@@ -1,4 +1,6 @@
 from models import get_user
+import simplejson
+import tornado.web
 def get_response_dict(success_bool, error_reason=None):
     response_dict = {}
     if success_bool:
@@ -9,25 +11,51 @@ def get_response_dict(success_bool, error_reason=None):
     return response_dict
 
 class AuthenticationException(Exception):
-        pass
-
-def auth_required(request):
-    def decorated_get(self):
-        try: username = self.get_argument('username')
-        except: raise AuthenticationException("Must supply username")
-        password = self.get_argument('password', None)
-        secret_token = self.get_argument('secret_token', None)
-        if password is None and secret_token is None:
-            raise AuthenticationException("Must supply password and/or secret token")
+        def __init__(self, message):
+            Exception.__init__(self, message)
+            self.message = message
+    
+class BaseHandler(tornado.web.RequestHandler):
+    def _handle_request_exception(self, e):
+        if isinstance(e, AuthenticationException):
+            self.send_error_override(500, auth_err_json=simplejson.dumps(get_response_dict(False, e.message)))
         else:
-            try: user = get_user(username=username)
-            except: raise AuthenticationException("Invalid username")
-            if password is not None:                
-                if not user.valid_password(password):
-                    raise AuthenticationException("Invalid password")
-            elif secret_token is not None:
-                if not user.valid_password(secret_token):
-                    raise AuthenticationException("Invalid secret_token")    
-        print "User authenticated!"
-        return
-    return decorated_get
+            super(BaseHandler, self)._handle_request_exception(e)
+    
+    def send_error_override(self, status_code=500, **kwargs):
+        if self._headers_written:
+#            logging.error("Cannot send error response after headers written")
+            if not self._finished:
+                self.finish()
+            return
+        if 'auth_err_json' in kwargs:
+            errjson = kwargs.pop('auth_err_json')
+            self.clear()
+            self.set_status(status_code)
+            self.finish(errjson)
+            
+        else:
+            super(BaseHandler, self).send_error(status_code, **kwargs)
+
+def auth_required(http_method):
+    def wrapper(self, *args, **kwargs):
+        try:
+            try: username = self.get_argument('username')
+            except: raise AuthenticationException("Must supply username")
+            password = self.get_argument('password', None)
+            secret_token = self.get_argument('secret_token', None)
+            if password is None and secret_token is None:
+                raise AuthenticationException("Must supply password and/or secret token")
+            else:
+                try: user = get_user(username=username)
+                except: raise AuthenticationException("Invalid username")
+                if password is not None:                
+                    if not user.valid_password(password):
+                        raise AuthenticationException("Invalid password")
+                elif secret_token is not None:
+                    if not user.valid_password(secret_token):
+                        raise AuthenticationException("Invalid secret_token")
+        except:
+            raise    
+        return http_method(self, *args, **kwargs)
+    return wrapper

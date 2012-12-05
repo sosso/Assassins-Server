@@ -39,10 +39,14 @@ class User(Base):
     # to "game" attribute
     games = association_proxy('user_games', 'game')
     
-    def User(self, password, username, profile_picture):
+    def __init__(self, password, username, profile_picture):
         self.username = username
         self.password = sha256_crypt.encrypt(password)
         self.profile_picture = profile_picture
+    
+    def set_password(self, password):
+        self.password = sha256_crypt.encrypt(password)
+        pass
     
     def valid_password(self, password):
         return sha256_crypt.verify(password, self.password)
@@ -473,13 +477,15 @@ def login(username, password):
     return user
 
 def create_user(username, password, profile_picture_binary):
-    profile_picture_url = imgur.upload(file_body=profile_picture_binary)
+    profile_picture_url = ""
+#    profile_picture_url = imgur.upload(file_body=profile_picture_binary)
     s = Session()
     user = s.query(User).filter_by(username=username).first()
     if user is not None:
         raise Exception("Account already exists")
     else: 
         user = User(password=password, username=username, profile_picture=profile_picture_url)
+        user.set_password(password) #to make sure it's hashed..wtf?
         s.add(user)
         s.commit()
         s.flush()

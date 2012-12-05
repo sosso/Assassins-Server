@@ -1,13 +1,7 @@
-from models import User, Session, UserGame, get_user, \
-    login, create_user
-from pkg_resources import StringIO
-from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.sql.functions import random
-import dbutils
-import os
+from handlers.response_utils import get_response_dict
+from models import Session, login, create_user
 import simplejson
 import tornado
-from handlers.response_utils import get_response_dict
 
 #logger = logging.getLogger('modelhandlers')
 

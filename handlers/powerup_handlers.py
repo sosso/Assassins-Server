@@ -1,7 +1,4 @@
-from models import User, Item, Session, UserGame
-from pkg_resources import StringIO
-from sqlalchemy.sql.functions import random
-import os
+from models import Session
 import simplejson
 import tornado
 

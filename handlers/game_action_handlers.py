@@ -1,8 +1,6 @@
 from handlers.response_utils import get_response_dict
-from models import User, Session, UserGame, get_user, Game, get_mission, \
+from models import Session, get_user, Game, get_mission, \
     get_missions, get_game, get_kills, Shot, get_usergames
-import datetime
-import dbutils
 import game_constants
 import imgur
 import simplejson

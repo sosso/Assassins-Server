@@ -5,16 +5,13 @@
 #
 
 #!/usr/bin/env python
-from modelhandlers import StatsHandler
-from tornado.options import define, options
+from tornado.options import define
 import handlers.account_handlers as AccountHandlers
 import handlers.game_action_handlers as GameActionHandlers
 import handlers.game_master_handlers as GameMasterHandlers
 import handlers.powerup_handlers as PowerupHandlers
 import logging
-import os
 import os.path
-import tornado.escape
 import tornado.httpserver
 import tornado.ioloop
 import tornado.options

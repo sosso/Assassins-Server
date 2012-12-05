@@ -1,5 +1,4 @@
-from models import User, Game, login, Kill, \
-    Mission, Shot
+from models import User, Game, login, Kill, Mission, Shot
 from test_utils import BaseTest, make_users, make_game
 import datetime
 import unittest

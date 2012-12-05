@@ -5,23 +5,20 @@ from sqlalchemy import Column, Integer, VARCHAR, INTEGER
 from sqlalchemy.engine import create_engine
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, backref, scoped_session
+from sqlalchemy.orm import relationship, scoped_session
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.session import sessionmaker, object_session
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.sql.expression import and_
 from sqlalchemy.types import String, Boolean, DateTime
 import datetime
-import dbutils
 import imgur
 import logging
 import os
-import sqlalchemy
 
 if bool(os.environ.get('TEST_RUN', False)):
     engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
 else:
-    engine = create_engine('mysql://bfc1ffabdb36c3:65da212b@us-cdbr-east-02.cleardb.com/heroku_1cec684f35035ce', echo=True, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
+    engine = create_engine('mysql://bfc1ffabdb36c3:65da212b@us-cdbr-east-02.cleardb.com/heroku_1cec684f35035ce', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
 
 Base = declarative_base(bind=engine)
 sm = sessionmaker(bind=engine, autoflush=True, autocommit=False, expire_on_commit=False)

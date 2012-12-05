@@ -1,10 +1,5 @@
-from models import User, Game, Session, engine, Base, login, clear_all
-from sqlalchemy.engine import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import scoped_session
-from sqlalchemy.orm.session import sessionmaker
+from models import Game
 from test_utils import BaseTest, make_users
-import dbutils
 import unittest
 
 

@@ -1,7 +1,7 @@
 from handlers.response_utils import get_response_dict
 from models import Session, login, create_user
 import simplejson
-import tornado
+import tornado.web
 
 #logger = logging.getLogger('modelhandlers')
 

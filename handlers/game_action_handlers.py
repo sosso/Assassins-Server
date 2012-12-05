@@ -4,7 +4,7 @@ from models import Session, get_user, Game, get_mission, \
 import game_constants
 import imgur
 import simplejson
-import tornado
+import tornado.web
 
 #logger = logging.getLogger('modelhandlers')
 

@@ -1,6 +1,6 @@
 from models import Session
 import simplejson
-import tornado
+import tornado.web
 
 #logger = logging.getLogger('modelhandlers')
 

@@ -4,7 +4,7 @@ from sqlalchemy.sql.functions import random
 import dbutils
 import os
 import simplejson
-import tornado
+import tornado.web
 
 #logger = logging.getLogger('modelhandlers')
 

@@ -36,7 +36,7 @@ class TestGameplay(BaseTest):
         player_0s_target_id = player_0_mission.target_id
         player_0s_targets_mission = self.session.query(Mission).filter_by(game_id=game.id, assassin_id=player_0s_target_id).one()
         
-        #Can't shoot him right away; need to wait.
+        #Fire away; this is valid!
         player_0_shooting_target = Shot(assassin_id=players[0].id, \
                                         target_id=player_0_mission.target_id, \
                                         game_id=game.id, \

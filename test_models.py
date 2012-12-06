@@ -1,5 +1,7 @@
 from models import User, Game, login, Kill, Mission, Shot
+
 from test_utils import BaseTest, make_users, make_game, make_game_with_master
+
 import datetime
 import unittest
 

@@ -1,18 +1,12 @@
-from models import User, Item, Session, UserGame
-from pkg_resources import StringIO
-from sqlalchemy.sql.functions import random
-import os
+from handlers.response_utils import auth_required
+from models import Session
 import simplejson
-import tornado
+import tornado.web
 
 #logger = logging.getLogger('modelhandlers')
 
-"""
-username
-item_id
-<file>
-"""
 class BuyPowerup(tornado.web.RequestHandler):
+    @auth_required
     @tornado.web.asynchronous
     def get(self):
         username = self.get_argument('username')
@@ -20,7 +14,7 @@ class BuyPowerup(tornado.web.RequestHandler):
 
         session = Session()
         try:
-            final_string = "User has entered %d" % len(games_entered)
+            pass
         except Exception, e:
             session.rollback()
             final_string = "Oops!  Something went wrong.  Please try again"
@@ -29,11 +23,9 @@ class BuyPowerup(tornado.web.RequestHandler):
             self.finish(final_string)
 
 
-"""
-username
-"""
 class ActivatePowerup(tornado.web.RequestHandler):
     @tornado.web.asynchronous
+    @auth_required
     def get(self):
         username = self.get_argument('username')
 
@@ -45,11 +37,9 @@ class ActivatePowerup(tornado.web.RequestHandler):
         Session.remove()
         self.finish(simplejson.dumps())
 
-"""
-username
-"""
 class Inventory(tornado.web.RequestHandler):
     @tornado.web.asynchronous
+    @auth_required
     def get(self):
         username = self.get_argument('username')
         session = Session()
@@ -65,6 +55,7 @@ class Inventory(tornado.web.RequestHandler):
 
 class ViewEnabled(tornado.web.RequestHandler):
     @tornado.web.asynchronous
+    @auth_required
     def get(self):
         item_id = self.get_argument('itemid')
         description = self.get_argument('description', '')

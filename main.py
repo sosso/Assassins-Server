@@ -5,16 +5,13 @@
 #
 
 #!/usr/bin/env python
-from modelhandlers import StatsHandler
-from tornado.options import define, options
+from tornado.options import define
 import handlers.account_handlers as AccountHandlers
 import handlers.game_action_handlers as GameActionHandlers
 import handlers.game_master_handlers as GameMasterHandlers
 import handlers.powerup_handlers as PowerupHandlers
 import logging
-import os
 import os.path
-import tornado.escape
 import tornado.httpserver
 import tornado.ioloop
 import tornado.options
@@ -39,7 +36,7 @@ class Application(tornado.web.Application):
 			(r"/game/assassinate", GameActionHandlers.Assassinate),
 			(r"/game/disputes", GameActionHandlers.DisputeHandler),
 			(r"/game/kills/view", GameActionHandlers.ViewKills),
-			(r"/game/join", GameActionHandlers.JoinGame),
+			(r"/game", GameActionHandlers.GetListOfJoinedOrJoinGame),
 			
 			(r"/game/powerup/buy", PowerupHandlers.BuyPowerup),
 			(r"/game/powerup/activate", PowerupHandlers.ActivatePowerup),
@@ -54,6 +51,8 @@ class Application(tornado.web.Application):
 			template_path=os.path.join(os.path.dirname(__file__), "templates"),
 			static_path=os.path.join(os.path.dirname(__file__), "static"),
 			debug=True,
+			facebook_secret="dc81b42a8501790580fef05bc11001ae",
+			facebook_api_key="383205491767592",
 		)
 		tornado.web.Application.__init__(self, handlers, **settings)
 
@@ -74,7 +73,6 @@ class MainHandler(tornado.web.RequestHandler):
 		)
 
 
-# RAMMING SPEEEEEEED!
 def main():
 	tornado.options.parse_command_line()
 	http_server = tornado.httpserver.HTTPServer(Application())

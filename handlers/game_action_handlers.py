@@ -1,15 +1,16 @@
-from handlers.response_utils import get_response_dict
-from models import User, Session, UserGame, get_user, Game, get_mission, \
-    get_missions, get_game, get_kills
-import dbutils
+from handlers.response_utils import get_response_dict, auth_required
+from models import Session, get_user, Game, get_mission, get_missions, get_game, \
+    get_kills, Shot, get_usergames
 import game_constants
+import imgur
 import simplejson
-import tornado
+import tornado.web
 
 #logger = logging.getLogger('modelhandlers')
 
 class CreateGame(tornado.web.RequestHandler):
     @tornado.web.asynchronous
+    @auth_required
     def post(self):
         friendly_name = self.get_argument('friendly_name')
         game_master_username = self.get_argument('game_master_username')
@@ -27,33 +28,33 @@ class CreateGame(tornado.web.RequestHandler):
             result_dict['game_id'] = game.id
         except Exception as e:
             session.rollback()
-            result_dict = get_response_dict(False, e.msg)
+            result_dict = get_response_dict(False, e.message)
         finally:
             Session.remove()
             self.finish(simplejson.dumps(result_dict))
 
-
 class ViewMission(tornado.web.RequestHandler):
     @tornado.web.asynchronous
+    @auth_required
     def get(self):
         username = self.get_argument('username')
         game_id = self.get_argument('game_id')
-        mission_id = self.get_argument('mission_id')
+        mission_id = self.get_argument('mission_id', None)
         session = Session()
         try:
             mission = get_mission(assassin_username=username, game_id=game_id, mission_id=mission_id)
             return_dict = mission.get_api_response_dict()
         except Exception as e:
-            return_dict = get_response_dict(False, e.msg)
+            return_dict = get_response_dict(False, e.message)
             session.rollback()
         finally:
             Session.remove()
             self.finish(simplejson.dumps(return_dict))
 
-
 #TODO handle game master case
 class ViewAllMissions(tornado.web.RequestHandler):
     @tornado.web.asynchronous
+    @auth_required
     def get(self):
         username = self.get_argument('username')
         game_id = self.get_argument('game_id')
@@ -71,10 +72,10 @@ class ViewAllMissions(tornado.web.RequestHandler):
             Session.remove()
             self.finish(simplejson.dumps(return_dict))
 
-#TODO
 class Assassinate(tornado.web.RequestHandler):
     @tornado.web.asynchronous
-    def get(self):
+    @auth_required
+    def post(self):
         username = self.get_argument('username')
         game_id = self.get_argument('game_id')
         shot_picture = None
@@ -82,17 +83,33 @@ class Assassinate(tornado.web.RequestHandler):
         mission_id = self.get_argument('mission_id', None)
         session = Session()
         try:
-            finish_string = "Item added"
-#            completed_items = session.Query(ItemCompletion).filter()
-        except Exception, e:
+            target_user = get_user(username=target_username)
+            assassin_user = get_user(username=username)
+            
+            picture_binary = self.request.files['shot_picture'][0]['body']
+            shot_picture_url = imgur.upload(file_body=picture_binary)
+
+            player_shooting_target = Shot(assassin_id=assassin_user.id, \
+                                        target_id=target_user.target_id, \
+                                        game_id=game_id, \
+                                        shot_picture=shot_picture_url)
+            if player_shooting_target.is_valid():
+                response_dict = get_response_dict(True)
+            else:
+                response_dict = get_response_dict(False, "Shot invalid.  If this was your target in this game, maybe you need to wait?")
+            session.add(player_shooting_target)
+            session.flush()
+            session.commit()
+        except Exception as e:
             session.rollback()
-            finish_string = "Item not added"
+            response_dict = get_response_dict(False, e.message)
         finally:
             Session.remove()
-            self.finish(finish_string)
+            self.finish(simplejson.dumps(response_dict))
 
 #TODO
 class DisputeHandler(tornado.web.RequestHandler):
+    @auth_required
     @tornado.web.asynchronous
     def get(self):
         item_id = self.get_argument('itemid')
@@ -100,14 +117,7 @@ class DisputeHandler(tornado.web.RequestHandler):
 
         session = Session()
         try:
-#            item = dbutils.get_or_create(session, Item, item_id=item_id)
-#            item.description = description
-#            session.add(item)
-#            session.flush()
-#            session.commit()
-#            finish_string = "Item added"
             pass
-#            completed_items = session.Query(ItemCompletion).filter()
         except Exception, e:
             session.rollback()
             finish_string = "Item not added"
@@ -116,6 +126,7 @@ class DisputeHandler(tornado.web.RequestHandler):
             self.finish(finish_string)
 
 class ViewKills(tornado.web.RequestHandler):
+    @auth_required
     @tornado.web.asynchronous
     def get(self):
         game_id = self.get_argument('game_id')
@@ -127,14 +138,33 @@ class ViewKills(tornado.web.RequestHandler):
             for kill in kills_from_db:
                 kills_json_array.append(kill.get_api_response_dict())
             return_obj = kills_json_array
-        except Exception, e:
+        except Exception as e:
             session.rollback()
             return_obj = []
         finally:
             Session.remove()
             self.finish(simplejson.dumps(return_obj))
 
-class JoinGame(tornado.web.RequestHandler):
+class GetListOfJoinedOrJoinGame(tornado.web.RequestHandler):
+    @auth_required
+    @tornado.web.asynchronous
+    def get(self):
+        username = self.get_argument('username')
+        session = Session()
+        try:
+            usergames_json_array = []
+            usergames = get_usergames(username=username)
+            for usergame in usergames:
+                usergames_json_array.append(usergame.get_api_response_dict())
+            response_obj = usergames_json_array
+        except Exception as e:
+            session.rollback()
+            response_obj = []
+        finally:
+            Session.remove()
+            self.finish(simplejson.dumps(response_obj))
+    
+    @auth_required
     @tornado.web.asynchronous
     def post(self):
         game_id = self.get_argument('game_id')
@@ -147,10 +177,9 @@ class JoinGame(tornado.web.RequestHandler):
             game = get_game(game_id=game_id, game_password=game_password)
             game.add_user(user)
             response_dict = get_response_dict(True)
-#            completed_items = session.Query(ItemCompletion).filter()
         except Exception as e:
             session.rollback()
-            response_dict = get_response_dict(False, e.msg)
+            response_dict = get_response_dict(False, e.message)
         finally:
             Session.remove()
             self.finish(simplejson.dumps(response_dict))

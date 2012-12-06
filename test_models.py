@@ -1,6 +1,5 @@
-from models import User, Game, login, Kill, \
-    Mission, Shot
-from test_utils import BaseTest, make_users, make_game
+from models import User, Game, login, Kill, Mission, Shot
+from test_utils import BaseTest, make_users, make_game, make_game_with_master
 import datetime
 import unittest
 
@@ -22,22 +21,13 @@ class TestGame(BaseTest):
     Create a game with a game master
     """
     def test_game_creation(self):
-        game_master = make_users(1)[0]
-        self.session.add(game_master)
-        self.session.flush()
-        game = Game(title='test game', password='testpassword', starting_money=3)
-        self.session.add(game)
-        self.session.flush()
-        game.add_game_master(user_id=game_master.id)
+        game_master, game = make_game_with_master(self.session)
         games_from_db = self.session.query(Game).all()
         self.assertEqual(1, len(games_from_db))
         self.assertEqual(game, games_from_db[0]) 
     
     def test_game_start(self):
-        game = make_game(self.session)
-        game_master = make_users(1)[0]
-        self.session.add(game_master)
-        self.session.flush()
+        game_master, game = make_game_with_master(session=self.session, add_gm_to_game=False)
         self.assertFalse(game.started)
         
         #There's only one user, so the game can't start
@@ -45,9 +35,7 @@ class TestGame(BaseTest):
         self.assertFalse(game.started)
         
         #Add a user, and the game still can't start because gamemasters can't play
-        users = make_users(2)
-        self.session.add_all(users)
-        self.session.flush()
+        users = make_users(2, self.session)
         game.add_user(users[0])
         game.start()
         self.assertFalse(game.started)
@@ -86,9 +74,8 @@ class TestMission(BaseTest):
     
     def test_mission_creation(self):
         game = Game(title='test game', password='testpassword', starting_money=3)
-        players = make_users(2)
+        players = make_users(2, self.session)
         self.session.add(game)
-        self.session.add_all(players)
         self.session.flush()
         
         mission = Mission(assassin_id=players[0].id, \
@@ -96,6 +83,7 @@ class TestMission(BaseTest):
                       game_id=game.id)
                       
         self.session.add(mission)
+        self.session.flush()
         missions_from_db = self.session.query(Mission).all()
         self.assertEqual(1, len(missions_from_db))
         self.assertEqual(mission, missions_from_db[0])
@@ -121,7 +109,7 @@ class TestShot(BaseTest):
         self.assertEqual(1, len(shots_from_db))
         self.assertEqual(shot, shots_from_db[0])
         
-    def test_shot_frequency(self):
+    def test_shot_count_and_timing(self):
         game = make_game()
         players = make_users(2)
         self.session.add_all(players)
@@ -168,7 +156,7 @@ class TestShot(BaseTest):
                       game_id=game.id,
                       shot_picture=shot_picture,
                       assassin_gps="1234567N;12345678W",
-                      timestamp=datetime.timedelta(minutes=90+89))
+                      timestamp=datetime.timedelta(minutes=90 + 89))
         self.assertEqual(1, players[0].get_shots_remaining(game.id))#the shot wasn't valid, so it shouldn't have been subtracted
         self.assertFalse(invalid_shot.is_valid())
         
@@ -178,7 +166,7 @@ class TestShot(BaseTest):
                       game_id=game.id,
                       shot_picture=shot_picture,
                       assassin_gps="1234567N;12345678W",
-                      timestamp=datetime.timedelta(minutes=90+90))
+                      timestamp=datetime.timedelta(minutes=90 + 90))
         self.assertTrue(valid_shot3.is_valid())
         self.assertEqual(0, players[0].get_shots_remaining(game.id))
         
@@ -188,7 +176,7 @@ class TestShot(BaseTest):
                       game_id=game.id,
                       shot_picture=shot_picture,
                       assassin_gps="1234567N;12345678W",
-                      timestamp=datetime.timedelta(minutes=90+90+89))
+                      timestamp=datetime.timedelta(minutes=90 + 90 + 89))
         self.assertEqual(0, players[0].get_shots_remaining(game.id))#the shot wasn't valid, so it shouldn't have been subtracted
         self.assertFalse(invalid_shot.is_valid())
         
@@ -198,7 +186,7 @@ class TestShot(BaseTest):
                       game_id=game.id,
                       shot_picture=shot_picture,
                       assassin_gps="1234567N;12345678W",
-                      timestamp=datetime.timedelta(minutes=90+90+90))
+                      timestamp=datetime.timedelta(minutes=90 + 90 + 90))
         self.assertFalse(valid_shot3.is_valid())
         self.assertEqual(0, players[0].get_shots_remaining(game.id))
         
@@ -209,10 +197,45 @@ class TestShot(BaseTest):
                       game_id=game.id,
                       shot_picture=shot_picture,
                       assassin_gps="1234567N;12345678W",
-                      timestamp=datetime.timedelta(minutes=24*60))
+                      timestamp=datetime.timedelta(minutes=24 * 60))
         self.assertEqual(0, players[0].get_shots_remaining(game.id))#they should have only had 1 valid shot, and now it's 0
         self.assertFalse(valid_shot4.is_valid())
         
+class TestDispute(BaseTest):
+    def test_create_dispute(self):
+        
+        #make a game, add some users to it, start it
+        game_master, game = make_game_with_master(self.session)
+        users = make_users(3, self.session)
+        game.add_users(users)
+        game.start()
+        
+        #The assassin shoots his target
+        an_active_mission = game.get_missions(active_only=True)[0]
+        bogus_shot = Shot(assassin_id=an_active_mission.assassin_id, \
+             target_id=an_active_mission.target_id, \
+              game_id=game.id,
+              shot_picture="http://www.imgur.com/bogusShot.png")
+        
+        #No disputes yet
+        self.assertEqual(0, len(get_disputes(game_id=game.id)))
+        
+        #The target sees the supposed kill picture, but it's just a picture of Tard the Grumpy Cat, not of him being shot
+        dispute = Dispute(claim='This is just a picture of tard the grumpy cat!', game_id=game.id, shot_id=bogus_shot.id)
+        
+        self.session.add(dispute)
+        self.session.add(bogus_shot)
+        self.session.flush()
+        
+        disputes_from_db = get_disputes(game_id=game.id)
+        self.assertEqual(1, len(disputes_from_db))
+        self.assertEqual(dispute, disputes_from_db[0])
+        
+        
+        
+    def test_resolve_dispute_by_gm(self):
+        pass
+    pass
 
 def suite():
     user_tests = unittest.TestLoader().loadTestsFromTestCase(TestUser)

@@ -160,8 +160,11 @@ class Game(Base):
     def get_users(self):
         return Session().query(UserGame).filter_by(game_id=self.id).all()
     
-    def get_missions(self):
-        return Session().query(Mission).filter_by(game_id=self.id).all()
+    def get_missions(self, active_only=False):
+        missions_query = Session().query(Mission).filter_by(game_id=self.id)
+        if active_only:
+            missions_query = missions_query.filter_by(completed_timestamp=None)
+        return missions_query.all()
     
     def assign_initial_missions(self):
         missions = []
@@ -462,6 +465,7 @@ def create_user(username, password, profile_picture_binary):
 def clear_all():
     for table in reversed(Base.metadata.sorted_tables):
         engine.execute(table.delete())
+        
 
 Base.metadata.create_all(engine)
 

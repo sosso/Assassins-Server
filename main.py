@@ -26,10 +26,6 @@ logging.basicConfig()
 class Application(tornado.web.Application):
 	def __init__(self):
 		handlers = [
-			(r"/([^/]+)?", MainHandler),
-			(r"/account/createuser", AccountHandlers.CreateUserHandler),
-			(r"/account/login", AccountHandlers.LoginHandler),
-			
 			(r"/game/creategame", GameActionHandlers.CreateGame),
 			(r"/game/viewmission", GameActionHandlers.ViewMission),
 			(r"/game/viewallmissions", GameActionHandlers.ViewAllMissions),
@@ -37,15 +33,14 @@ class Application(tornado.web.Application):
 			(r"/game/disputes", GameActionHandlers.DisputeHandler),
 			(r"/game/kills/view", GameActionHandlers.ViewKills),
 			(r"/game", GameActionHandlers.GetListOfJoinedOrJoinGame),
-			
 			(r"/game/powerup/buy", PowerupHandlers.BuyPowerup),
 			(r"/game/powerup/activate", PowerupHandlers.ActivatePowerup),
 			(r"/game/powerup/inventory", PowerupHandlers.Inventory),
 			(r"/game/powerup/viewenabled", PowerupHandlers.ViewEnabled),
-			
 			(r"/game/master/kick", GameMasterHandlers.Kick),
 			(r"/game/master/grantpowerup", GameMasterHandlers.GrantPowerup),
-			
+			(r"/account/login", AccountHandlers.LoginHandler),
+			(r"/account/createuser", AccountHandlers.CreateUserHandler),
 		]
 		settings = dict(
 			template_path=os.path.join(os.path.dirname(__file__), "templates"),

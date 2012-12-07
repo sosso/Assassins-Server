@@ -18,19 +18,17 @@ class LoginHandler(BaseHandler):
             self.finish(simplejson.dumps(result_dict))
 
 class CreateUserHandler(tornado.web.RequestHandler):
-    @tornado.web.asynchronous
     def post(self):
         logger = logging.getLogger('CreateUserHandler')
         username = self.get_argument('username')
         password = self.get_argument('password')
-
+        logger.info('Create user request received, args grabbed')
         session = Session()
         result_dict = {}
         try:
             picture_binary = self.request.files['profile_picture'][0]['body']    
             create_user(username=username, password=password, profile_picture_binary=picture_binary)
             result_dict = get_response_dict(True)
-#            logger.info('user %s created successfully' % username)
         except Exception, e:
             logger.exception(e)
             session.rollback()

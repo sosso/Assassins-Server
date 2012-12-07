@@ -1,6 +1,7 @@
 from dbutils import get_or_create
 from game_constants import DEFAULT_STARTING_MONEY, MAX_SHOT_INTERVAL_MINUTES, \
     MAX_SHOTS_PER_24_HOURS
+from passlib.handlers.sha2_crypt import sha256_crypt
 from sqlalchemy import Column, Integer, VARCHAR, INTEGER
 from sqlalchemy.engine import create_engine
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -17,7 +18,7 @@ import os
 #from passlib.hash import sha256_crypt
 
 if bool(os.environ.get('TEST_RUN', False)):
-    engine = create_engine('mysql://root:root@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
+    engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
 else:
     engine = create_engine('mysql://bfc1ffabdb36c3:65da212b@us-cdbr-east-02.cleardb.com/heroku_1cec684f35035ce', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
 
@@ -42,9 +43,8 @@ class User(Base):
     def __init__(self, password, username, profile_picture):
         self.username = username
         self.password = password
-#        self.password = sha256_crypt.encrypt(password)
-
-        self.profile_picture = profile_picture
+        self.password = sha256_crypt.encrypt(password)
+#        self.profile_picture = profile_picture
 
     def get_shots_remaining(self, game_id):
         shots = get_shots_since(datetime.datetime.now(), self.id, game_id, valid_only=True)
@@ -52,12 +52,12 @@ class User(Base):
         return int(usergame.max_shots_per_24_hours - len(shots))
     
     def set_password(self, password):
-#        self.password = sha256_crypt.encrypt(password)
-        self.password = password
+        self.password = sha256_crypt.encrypt(password)
+#        self.password = password
     
     def valid_password(self, password):
-        return self.password == password
-#    sha256_crypt.verify(password, self.password)
+#        return self.password == password
+        return sha256_crypt.verify(password, self.password)
 
 class Mission(Base):
     __tablename__ = 'mission'
@@ -494,15 +494,14 @@ def login(username, password):
     return user
 
 def create_user(username, password, profile_picture_binary):
-    profile_picture_url = ""
-#    profile_picture_url = imgur.upload(file_body=profile_picture_binary)
+#    profile_picture_url = ""
+    profile_picture_url = imgur.upload(file_body=profile_picture_binary)
     s = Session()
     user = s.query(User).filter_by(username=username).first()
     if user is not None:
         raise Exception("Account already exists")
     else: 
         user = User(password=password, username=username, profile_picture=profile_picture_url)
-        user.set_password(password) #to make sure it's hashed..wtf?
         s.add(user)
         s.commit()
         s.flush()

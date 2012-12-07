@@ -112,7 +112,7 @@ class TestShot(BaseTest):
         self.assertEqual(shot, shots_from_db[0])
         
     def test_shot_count_and_timing(self):
-        game = make_game()
+        game = make_game(self.session)
         players = make_users(2)
         self.session.add_all(players)
         self.session.flush()
@@ -243,5 +243,7 @@ def suite():
     user_tests = unittest.TestLoader().loadTestsFromTestCase(TestUser)
     game_tests = unittest.TestLoader().loadTestsFromTestCase(TestGame)
     kill_tests = unittest.TestLoader().loadTestsFromTestCase(TestKill)
+    shot_tests = unittest.TestLoader().loadTestsFromTestCase(TestShot)
+    dispute_tests = unittest.TestLoader().loadTestsFromTestCase(TestDispute)
     mission_tests = unittest.TestLoader().loadTestsFromTestCase(TestMission)
-    return unittest.TestSuite([user_tests, game_tests, kill_tests, mission_tests])
+    return unittest.TestSuite([user_tests, game_tests, kill_tests, shot_tests, dispute_tests, mission_tests])

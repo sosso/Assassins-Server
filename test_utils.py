@@ -17,7 +17,8 @@ def make_users(number_of_users, session=None):
         users.append(User(username='Hitman' + str(user_number), password='123456', profile_picture='hitman.png'))
 
     if session is not None:
-        session.add_all(users)    
+        session.add_all(users)
+        session.flush()    
     return users
 
 def make_game(session):

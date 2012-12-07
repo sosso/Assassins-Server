@@ -10,14 +10,14 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.session import sessionmaker, object_session
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import String, Boolean, DateTime
-from passlib.hash import sha256_crypt
 import datetime
 import imgur
 import logging
 import os
+#from passlib.hash import sha256_crypt
 
 if bool(os.environ.get('TEST_RUN', False)):
-    engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
+    engine = create_engine('mysql://anthony@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
 else:
     engine = create_engine('mysql://bfc1ffabdb36c3:65da212b@us-cdbr-east-02.cleardb.com/heroku_1cec684f35035ce', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
 
@@ -41,15 +41,23 @@ class User(Base):
     
     def __init__(self, password, username, profile_picture):
         self.username = username
-        self.password = sha256_crypt.encrypt(password)
+        self.password = password
+#        self.password = sha256_crypt.encrypt(password)
+
         self.profile_picture = profile_picture
+
+    def get_shots_remaining(self, game_id):
+        shots = get_shots_since(datetime.datetime.now(), self.id, game_id, valid_only=True)
+        usergame = get_usergame(self.id, game_id)
+        return usergame.max_shots_per_24_hours - len(shots)
     
     def set_password(self, password):
-        self.password = sha256_crypt.encrypt(password)
-        pass
+#        self.password = sha256_crypt.encrypt(password)
+        self.password = password
     
     def valid_password(self, password):
-        return sha256_crypt.verify(password, self.password)
+        return self.password == password
+#    sha256_crypt.verify(password, self.password)
 
 class Game(Base):
     __tablename__ = 'game'
@@ -228,6 +236,7 @@ class UserGame(Base):
     
 # I don't know that we need a separate class for this.  Shot can probably encapsulate it just fine?
 # But maybe we archive this?
+
 class Kill(Base):
     __tablename__ = 'kill'
 
@@ -371,12 +380,14 @@ class Shot(Base):
     def set_kill_id(self, kill_id):
         self.kill_id = kill_id
 
-def get_shots_since(timestamp, user_id, game_id):
+def get_shots_since(timestamp, user_id, game_id, valid_only=False):
     shots = Session().query(Shot).filter_by(assassin_id=user_id, game_id=game_id, valid=True).all()
 #    filter(timestamp >= timestamp)
     shots_to_return = []
     for shot in shots:
         if shot.timestamp >= timestamp:
+            if valid_only and not shot.is_valid():
+                continue
             shots_to_return.append(shot)
     
     return sorted(shots_to_return, key=lambda shot: shot.timestamp, reverse=True) #sorted most recent - oldest 

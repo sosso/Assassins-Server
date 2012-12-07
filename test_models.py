@@ -33,8 +33,8 @@ class TestGame(BaseTest):
         self.assertFalse(game.started)
         
         #There's only one user, so the game can't start
-        game.start()
-        self.assertFalse(game.started)
+        
+        self.assertRaises(game.start(), Exception)
         
         #Add a user, and the game still can't start because gamemasters can't play
         users = make_users(2, self.session)
@@ -112,7 +112,7 @@ class TestShot(BaseTest):
         self.assertEqual(shot, shots_from_db[0])
         
     def test_shot_count_and_timing(self):
-        game = make_game(self.session)
+        game_master, game = make_game_with_master(self.session, True)
         players = make_users(2)
         self.session.add_all(players)
         self.session.flush()
@@ -129,6 +129,8 @@ class TestShot(BaseTest):
                       game_id=game.id,
                       shot_picture=shot_picture,
                       assassin_gps="1234567N;12345678W")
+        self.session.add(valid_shot)
+        self.session.flush()
         self.assertTrue(valid_shot.is_valid())
         self.assertEqual(2, players[0].get_shots_remaining(game.id)) #make sure the user only has 2 shots left
         

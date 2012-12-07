@@ -22,9 +22,6 @@ def make_users(number_of_users, session=None):
     return users
 
 def make_game(session):
-    game_master = make_users(1)[0]
-    session.add(game_master)
-    session.flush()
     game = Game(title='test game', password='testpassword', starting_money=3)
 #    game.add_game_master(user_id=game_master.id)
     session.add(game)

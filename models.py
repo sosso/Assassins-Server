@@ -17,7 +17,7 @@ import os
 #from passlib.hash import sha256_crypt
 
 if bool(os.environ.get('TEST_RUN', False)):
-    engine = create_engine('mysql://anthony@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
+    engine = create_engine('mysql://root:root@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
 else:
     engine = create_engine('mysql://bfc1ffabdb36c3:65da212b@us-cdbr-east-02.cleardb.com/heroku_1cec684f35035ce', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
 
@@ -49,7 +49,7 @@ class User(Base):
     def get_shots_remaining(self, game_id):
         shots = get_shots_since(datetime.datetime.now(), self.id, game_id, valid_only=True)
         usergame = get_usergame(self.id, game_id)
-        return usergame.max_shots_per_24_hours - len(shots)
+        return int(usergame.max_shots_per_24_hours - len(shots))
     
     def set_password(self, password):
 #        self.password = sha256_crypt.encrypt(password)
@@ -58,6 +58,41 @@ class User(Base):
     def valid_password(self, password):
         return self.password == password
 #    sha256_crypt.verify(password, self.password)
+
+class Mission(Base):
+    __tablename__ = 'mission'
+    id = Column(u'id', INTEGER(), primary_key=True, nullable=False)
+
+    game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
+    assassin_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
+    target_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
+    
+    #None until it's associated with a kill
+    kill_id = Column(Integer, ForeignKey('kill.id'), nullable=True)
+    
+    assignment_timestamp = Column(DateTime, default=datetime.datetime.now)
+    completed_timestamp = Column(DateTime, nullable=True)
+    
+    def __init__(self, assassin_id, game_id, target_id):
+        self.assassin_id = assassin_id
+        self.game_id = game_id
+        self.target_id = target_id
+    
+    def set_kill_id(self, kill_id):
+        self.kill_id = kill_id
+
+    def __repr__(self):
+        return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
+    
+    def get_api_response_dict(self):
+        target = get_user(user_id=self.target_id)
+        response_dict = {'target_username':target.username, \
+                'profile_picture':target.profile_picture, \
+                'assigned': self.assignment_timestamp.strftime("%Y-%m-%d %H:%M:%S")}
+        if self.completed_timestamp is not None:
+            response_dict['completed'] = self.completed_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        return response_dict
+
 
 class Game(Base):
     __tablename__ = 'game'
@@ -77,7 +112,7 @@ class Game(Base):
             self.assign_initial_missions()
             self.started = True
         else:
-            pass
+            raise Exception("Must have two or more players and 1 game master")
     
     def _get_game_masters(self):
         access_objects = object_session(self).query(UserGame).filter_by(game_id=self.id, is_game_master=True).all() 
@@ -102,6 +137,8 @@ class Game(Base):
             return None
         return winner.user
 #    winner = property(_get_winner)
+    
+    missions = relationship(Mission, primaryjoin=Mission.game_id == id)
     
     def _get_user_list(self):
         access_objects = self._get_user_statuses()
@@ -278,40 +315,6 @@ class Kill(Base):
             response_dict['completed'] = self.completed_timestamp.strftime("%Y-%m-%d %H:%M:%S")
         return response_dict
 
-class Mission(Base):
-    __tablename__ = 'mission'
-    id = Column(u'id', INTEGER(), primary_key=True, nullable=False)
-
-    game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
-    assassin_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
-    target_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
-    
-    #None until it's associated with a kill
-    kill_id = Column(Integer, ForeignKey('kill.id'), nullable=True)
-    
-    assignment_timestamp = Column(DateTime, default=datetime.datetime.now)
-    completed_timestamp = Column(DateTime, nullable=True)
-    
-    def __init__(self, assassin_id, game_id, target_id):
-        self.assassin_id = assassin_id
-        self.game_id = game_id
-        self.target_id = target_id
-    
-    def set_kill_id(self, kill_id):
-        self.kill_id = kill_id
-
-    def __repr__(self):
-        return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
-    
-    def get_api_response_dict(self):
-        target = get_user(user_id=self.target_id)
-        response_dict = {'target_username':target.username, \
-                'profile_picture':target.profile_picture, \
-                'assigned': self.assignment_timestamp.strftime("%Y-%m-%d %H:%M:%S")}
-        if self.completed_timestamp is not None:
-            response_dict['completed'] = self.completed_timestamp.strftime("%Y-%m-%d %H:%M:%S")
-        return response_dict
-    
 
 class Shot(Base):
     __tablename__ = 'shot'

@@ -42,9 +42,8 @@ class User(Base):
     
     def __init__(self, password, username, profile_picture):
         self.username = username
-        self.password = password
         self.password = sha256_crypt.encrypt(password)
-#        self.profile_picture = profile_picture
+        self.profile_picture = profile_picture
 
     def get_shots_remaining(self, game_id):
         shots = get_shots_since(datetime.datetime.now(), self.id, game_id, valid_only=True)
@@ -53,10 +52,8 @@ class User(Base):
     
     def set_password(self, password):
         self.password = sha256_crypt.encrypt(password)
-#        self.password = password
     
     def valid_password(self, password):
-#        return self.password == password
         return sha256_crypt.verify(password, self.password)
 
 class Mission(Base):

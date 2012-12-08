@@ -1,4 +1,5 @@
-from models import User, Game, login, Kill, Mission, Shot
+from models import User, Game, login, Kill, Mission, Shot,\
+    InvalidGameRosterException
 
 from test_utils import BaseTest, make_users, make_game, make_game_with_master
 
@@ -34,18 +35,16 @@ class TestGame(BaseTest):
         
         #There's only one user, so the game can't start
         
-        self.assertRaises(game.start(), Exception)
+        self.assertRaises(InvalidGameRosterException, game.start)
         
         #Add a user, and the game still can't start because gamemasters can't play
         users = make_users(2, self.session)
         game.add_user(users[0])
-        game.start()
-        self.assertFalse(game.started)
+        self.assertRaises(InvalidGameRosterException, game.start)
         
         #Add the second player, can't start because although there's 2 players, there's no gamemaster
         game.add_user(users[1])
-        game.start()
-        self.assertFalse(game.started)
+        self.assertRaises(InvalidGameRosterException, game.start)
         
         #Add game master and we can finally play
         game.add_game_master(game_master)
@@ -140,7 +139,9 @@ class TestShot(BaseTest):
                       game_id=game.id,
                       shot_picture=shot_picture,
                       assassin_gps="1234567N;12345678W",
-                      timestamp=datetime.timedelta(minutes=89))
+                      timestamp=datetime.datetime.now()+datetime.timedelta(minutes=89))
+        self.session.add(invalid_shot)
+        self.session.flush()
         self.assertEqual(2, players[0].get_shots_remaining(game.id))#the shot wasn't valid, so it shouldn't have been subtracted
         self.assertFalse(invalid_shot.is_valid())
         
@@ -150,7 +151,9 @@ class TestShot(BaseTest):
                       game_id=game.id,
                       shot_picture=shot_picture,
                       assassin_gps="1234567N;12345678W",
-                      timestamp=datetime.timedelta(minutes=90))
+                      timestamp=datetime.datetime.now()+datetime.timedelta(minutes=90))
+        self.session.add(valid_shot2)
+        self.session.flush()
         self.assertTrue(valid_shot2.is_valid())
         self.assertEqual(1, players[0].get_shots_remaining(game.id))
         
@@ -160,7 +163,9 @@ class TestShot(BaseTest):
                       game_id=game.id,
                       shot_picture=shot_picture,
                       assassin_gps="1234567N;12345678W",
-                      timestamp=datetime.timedelta(minutes=90 + 89))
+                      timestamp=datetime.datetime.now()+datetime.timedelta(minutes=90 + 89))
+        self.session.add(invalid_shot)
+        self.session.flush()
         self.assertEqual(1, players[0].get_shots_remaining(game.id))#the shot wasn't valid, so it shouldn't have been subtracted
         self.assertFalse(invalid_shot.is_valid())
         
@@ -170,7 +175,9 @@ class TestShot(BaseTest):
                       game_id=game.id,
                       shot_picture=shot_picture,
                       assassin_gps="1234567N;12345678W",
-                      timestamp=datetime.timedelta(minutes=90 + 90))
+                      timestamp=datetime.datetime.now()+datetime.timedelta(minutes=90 + 90))
+        self.session.add(valid_shot3)
+        self.session.flush()
         self.assertTrue(valid_shot3.is_valid())
         self.assertEqual(0, players[0].get_shots_remaining(game.id))
         
@@ -180,7 +187,9 @@ class TestShot(BaseTest):
                       game_id=game.id,
                       shot_picture=shot_picture,
                       assassin_gps="1234567N;12345678W",
-                      timestamp=datetime.timedelta(minutes=90 + 90 + 89))
+                      timestamp=datetime.datetime.now()+datetime.timedelta(minutes=90 + 90 + 89))
+        self.session.add(invalid_shot)
+        self.session.flush()
         self.assertEqual(0, players[0].get_shots_remaining(game.id))#the shot wasn't valid, so it shouldn't have been subtracted
         self.assertFalse(invalid_shot.is_valid())
         
@@ -190,7 +199,9 @@ class TestShot(BaseTest):
                       game_id=game.id,
                       shot_picture=shot_picture,
                       assassin_gps="1234567N;12345678W",
-                      timestamp=datetime.timedelta(minutes=90 + 90 + 90))
+                      timestamp=datetime.datetime.now()+datetime.timedelta(minutes=90 + 90 + 90))
+        self.session.add(valid_shot3)
+        self.session.flush()
         self.assertFalse(valid_shot3.is_valid())
         self.assertEqual(0, players[0].get_shots_remaining(game.id))
         
@@ -201,7 +212,9 @@ class TestShot(BaseTest):
                       game_id=game.id,
                       shot_picture=shot_picture,
                       assassin_gps="1234567N;12345678W",
-                      timestamp=datetime.timedelta(minutes=24 * 60))
+                      timestamp=datetime.datetime.now()+datetime.timedelta(minutes=24 * 60))
+        self.session.add(valid_shot4)
+        self.session.flush()
         self.assertEqual(0, players[0].get_shots_remaining(game.id))#they should have only had 1 valid shot, and now it's 0
         self.assertFalse(valid_shot4.is_valid())
         

@@ -46,7 +46,7 @@ class User(Base):
         self.profile_picture = profile_picture
 
     def get_shots_remaining(self, game_id):
-        shots = get_shots_since(datetime.datetime.now(), self.id, game_id, valid_only=True)
+        shots = get_shots_since(datetime.datetime.now() - datetime.timedelta(days=1), self.id, game_id, valid_only=True)
         usergame = get_usergame(self.id, game_id)
         return int(usergame.max_shots_per_24_hours - len(shots))
     
@@ -90,6 +90,7 @@ class Mission(Base):
             response_dict['completed'] = self.completed_timestamp.strftime("%Y-%m-%d %H:%M:%S")
         return response_dict
 
+class InvalidGameRosterException(Exception): "Must have two or more players and 1 game master"
 
 class Game(Base):
     __tablename__ = 'game'
@@ -109,7 +110,7 @@ class Game(Base):
             self.assign_initial_missions()
             self.started = True
         else:
-            raise Exception("Must have two or more players and 1 game master")
+            raise InvalidGameRosterException
     
     def _get_game_masters(self):
         access_objects = object_session(self).query(UserGame).filter_by(game_id=self.id, is_game_master=True).all() 
@@ -355,7 +356,7 @@ class Shot(Base):
             mission = get_mission(assassin_id=self.assassin_id, target_id=self.target_id, game_id=self.game_id)
             
             #Step 2:  does the assassin have shots remaining?
-            shots = get_shots_since(timestamp=datetime.datetime.today() - datetime.timedelta(hours=24), user_id=self.assassin_id, game_id=self.game_id)
+            shots = get_shots_since(timestamp=datetime.datetime.today() - datetime.timedelta(hours=24), user_id=self.assassin_id, game_id=self.game_id, valid_only=True)
             if len(shots) >= assassin_usergame.max_shots_per_24_hours:
                 return False
             
@@ -367,8 +368,10 @@ class Shot(Base):
                         most_recent_shot = shots[1]
                     else:
                         return True
-                 
-                if most_recent_shot.timestamp + datetime.timedelta(minutes=assassin_usergame.max_shot_interval_minutes) >= self.timestamp:
+                
+                minimum_timedelta_between_shots = datetime.timedelta(minutes=assassin_usergame.max_shot_interval_minutes)
+                time_between_last_shot_and_this_one = self.timestamp - most_recent_shot.timestamp  
+                if time_between_last_shot_and_this_one < minimum_timedelta_between_shots:
                     return False
             
             self.valid = True
@@ -386,7 +389,7 @@ def get_shots_since(timestamp, user_id, game_id, valid_only=False):
     shots_to_return = []
     for shot in shots:
         if shot.timestamp >= timestamp:
-            if valid_only and not shot.is_valid():
+            if valid_only and not shot.valid:
                 continue
             shots_to_return.append(shot)
     

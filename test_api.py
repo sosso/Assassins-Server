@@ -26,16 +26,20 @@ def create_game():
 
 def join_game(game_req, user_req):
     payload = {'game_id':game_req.json['game_id'], 'game_password':test_game_password, \
-                    'username':'test_user1', 'secret_token':'test_pass'}
+                    'username':user_req.json['username'], 'secret_token':'test_pass'}
     r = requests.post(base_url + 'game/?', params=payload)
     return r
+
+def start_game(game_req):
+    start_req = requests.post(base_url + 'game/master/start?game_id=%s&secret_token=test_pass&game_master_username=test_user0' % game_req.json['game_id'])
+    return start_req
 
 class TestUser(APIBaseTest):
     
     def test_user_creation(self):
         create_users(1)
         r = requests.post(base_url + 'account/createuser?username=test_user0&password=test_pass', files=files)
-        self.assertEqual(success_dict, simplejson.loads(r.text))
+        self.assertTrue(r.json['success'] == 'success')
 
     def test_login(self):
         reqs = create_users(1)
@@ -63,14 +67,26 @@ class TestGame(APIBaseTest):
         join_game(game_req, user_reqs[1])
         games_list = requests.get(base_url + 'game/?username=test_user1&secret_token=test_pass')
         self.assertTrue(isinstance(games_list.json, list))
-        self.assertTrue(len(games_list.json) > 0)
+        self.assertTrue(len(games_list.json) == 1)
         pass
+
+class TestGameMaster(APIBaseTest):
+    def test_start_game(self):
+        #Create a game, add two additional users, and start it
+        user_reqs = create_users(3)
+        game_req = create_game()
+        join_req_1 = join_game(game_req, user_reqs[1])
+        join_req_2 = join_game(game_req, user_reqs[2])
+        start_req = start_game(game_req)
+        self.assertEqual(success_dict, start_req.json)
+        
         
 
 def suite():
     user_tests = unittest.TestLoader().loadTestsFromTestCase(TestUser)
     game_tests = unittest.TestLoader().loadTestsFromTestCase(TestGame)
-    return unittest.TestSuite([user_tests, game_tests])
+    gm_tests = unittest.TestLoader().loadTestsFromTestCase(TestGameMaster)
+    return unittest.TestSuite([user_tests, game_tests, gm_tests])
 
 if __name__ == '__main__':
     unittest.TextTestRunner(verbosity=2).run(suite())

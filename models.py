@@ -93,7 +93,10 @@ class Mission(Base):
             response_dict['completed'] = self.completed_timestamp.strftime("%Y-%m-%d %H:%M:%S")
         return response_dict
 
-class InvalidGameRosterException(Exception): "Must have two or more players and 1 game master"
+class InvalidGameRosterException(Exception): 
+    def __init__(self, message):
+        Exception.__init__(self, message)
+        self.message = message
 
 class Game(Base):
     __tablename__ = 'game'
@@ -113,7 +116,7 @@ class Game(Base):
             self.assign_initial_missions()
             self.started = True
         else:
-            raise InvalidGameRosterException
+            raise InvalidGameRosterException("Must have two or more players and 1 game master")
     
     def _get_game_masters(self):
         access_objects = object_session(self).query(UserGame).filter_by(game_id=self.id, is_game_master=True).all() 

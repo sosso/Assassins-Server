@@ -19,6 +19,8 @@ import os
 
 if bool(os.environ.get('TEST_RUN', False)):
     engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
+elif bool(os.environ.get('TEST_RUN_MIKE', False)):
+    engine = create_engine('mysql://anthony@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
 else:
     engine = create_engine('mysql://bfc1ffabdb36c3:65da212b@us-cdbr-east-02.cleardb.com/heroku_1cec684f35035ce', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
 
@@ -104,6 +106,11 @@ class Game(Base):
     max_shots_per_24_hours = Column(Integer(), default=MAX_SHOTS_PER_24_HOURS)
     started = Column(Boolean(), default=False)
     over = Column(Boolean(), default=False)
+    
+    #Powerup Enabled Columns
+    body_double = Column(Boolean(), default=False)
+    fast_reload = Column(Boolean(), default=False)
+    double_shot = Column(Boolean(), default=False)
     
     def start(self):
         if len(self.get_players()) > 1 and len(self.game_masters) > 0:
@@ -236,6 +243,27 @@ class Game(Base):
         except Exception, e:
             session.rollback()
             self.logger.exception(e)
+            
+    def enable_powerup(self, game_master_id, *enabled_powerups):
+        s = Session()
+        game = s.query(Game).filter_by(id=self.id)
+        dbl_shot_id = s.query(Powerup).filter_by(title='double_shot').value('id')
+        fast_reload_id = s.query(Powerup).filter_by(title='fast_reload').value('id')
+        body_double_id = s.query(Powerup).filter_by(title='body_double').value('id')
+        
+        for gm in self.game_masters:
+            if(gm.id == game_master_id):
+                for p in enabled_powerups:
+                    if(p == body_double_id):
+                        self.body_double = True
+                    elif(p == fast_reload_id):
+                        self.fast_reload = True
+                    elif(p == dbl_shot_id):
+                        self.double_shot = True
+        s.flush()
+            
+                
+        
 
 class UserGame(Base):
     __tablename__ = 'user_game'
@@ -247,6 +275,10 @@ class UserGame(Base):
     is_game_master = Column(Boolean, default=False, nullable=True)
     max_shot_interval_minutes = Column(Integer(), default=90)
     max_shots_per_24_hours = Column(Integer(), default=3)
+    
+    #User has powerups
+    has_double_shot = Column(Boolean(), default=False)
+    has_fast_reload = Column(Boolean(), default=False)
     has_body_double = Column(Boolean(), default=False)
     
     user = relationship(User, primaryjoin=User.id == user_id)
@@ -384,6 +416,35 @@ class Shot(Base):
     def set_kill_id(self, kill_id):
         self.kill_id = kill_id
 
+class Powerup(Base):
+    __tablename__ = 'powerup'
+    id = Column(u'id', INTEGER(), primary_key=True, nullable=False)
+    
+    title = Column(VARCHAR(length=255))
+    cost = Column(INTEGER())
+    
+    def __init__(self, title, cost):
+        self.title = title
+        self.cost = cost
+        
+#    def add_to_powerups(self, title, cost):
+#        s = Session()
+#        powerup = get_or_create(s, Powerup, title=self.title, cost=self.cost)
+#        s.commit()
+        
+    def add_user_powerup(self, user, game, powerup):
+        s = Session()
+        ug = s.query(UserGame).filter_by(user_id=user.id, game_id=game.id).one()
+        
+        if(powerup.title == 'double_shot'):
+            ug.has_double_shot=True
+        elif(powerup.title == 'fast_reload'):
+            ug.has_fast_reload=True
+        elif(powerup.title == 'body_double'):
+            ug.has_body_double=True
+            
+        s.flush()
+
 def get_shots_since(timestamp, user_id, game_id, valid_only=False):
     shots = Session().query(Shot).filter_by(assassin_id=user_id, game_id=game_id, valid=True).all()
 #    filter(timestamp >= timestamp)
@@ -511,6 +572,14 @@ def clear_all():
     for table in reversed(Base.metadata.sorted_tables):
         engine.execute(table.delete())
         
+def get_powerup_id_by_name(powerup_title):
+    session = Session()
+    try:
+        powerup_id = session.query(Powerup).filter_by(title=powerup_title).one()
+        return powerup_id
+    except Exception, e:
+        raise Exception("Powerup "+powerup_title+" does not exist")
+
 
 Base.metadata.create_all(engine)
 

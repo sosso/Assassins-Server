@@ -18,7 +18,10 @@ import os
 #from passlib.hash import sha256_crypt
 
 if bool(os.environ.get('TEST_RUN', False)):
-    engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
+    if bool(os.environ.get('ANTHONY_TABLET_RUN', False)):
+        engine = create_engine('mysql://root:root@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
+    else:
+        engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
 else:
     engine = create_engine('mysql://bfc1ffabdb36c3:65da212b@us-cdbr-east-02.cleardb.com/heroku_1cec684f35035ce', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
 
@@ -267,7 +270,6 @@ class UserGame(Base):
                 'game_password':self.game.password, \
                 'game_friendly_name': self.game.title, \
                 'alive':self.alive}
-        response_dict['completed'] = self.completed_timestamp.strftime("%Y-%m-%d %H:%M:%S")
         return response_dict
     
 # I don't know that we need a separate class for this.  Shot can probably encapsulate it just fine?

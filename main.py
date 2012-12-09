@@ -32,7 +32,7 @@ class Application(tornado.web.Application):
 			(r"/game/assassinate", GameActionHandlers.Assassinate),
 			(r"/game/disputes", GameActionHandlers.DisputeHandler),
 			(r"/game/kills/view", GameActionHandlers.ViewKills),
-			(r"/game", GameActionHandlers.GetListOfJoinedOrJoinGame),
+			(r"/game/", GameActionHandlers.GetListOfJoinedOrJoinGame),
 			(r"/game/powerup/buy", PowerupHandlers.BuyPowerup),
 			(r"/game/powerup/activate", PowerupHandlers.ActivatePowerup),
 			(r"/game/powerup/inventory", PowerupHandlers.Inventory),

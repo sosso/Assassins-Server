@@ -14,7 +14,10 @@ class CreateGame(tornado.web.RequestHandler):
     def post(self):
         friendly_name = self.get_argument('friendly_name')
         game_master_username = self.get_argument('game_master_username')
-        base_money = int(self.get_argument('base_money'), game_constants.DEFAULT_STARTING_MONEY)
+        try:
+            base_money = int(self.get_argument('base_money'))
+        except:
+            base_money = game_constants.DEFAULT_STARTING_MONEY
         password = self.get_argument('game_password')
         session = Session()
         try:

@@ -169,8 +169,9 @@ class Game(Base):
     
     def add_user(self, user, is_game_master=False):
         s = Session()
-        get_or_create(s, UserGame, user_id=user.id, game_id=self.id, is_game_master=is_game_master, max_shots_per_24_hours=self.max_shots_per_24_hours, max_shot_interval_minutes=self.max_shot_interval_minutes)
-        
+        usergame = get_or_create(s, UserGame, user_id=user.id, game_id=self.id, is_game_master=is_game_master, max_shots_per_24_hours=self.max_shots_per_24_hours, max_shot_interval_minutes=self.max_shot_interval_minutes)
+        s.commit()
+
     def add_game_master(self, user=None, user_id=None):
         if user is None and user_id is None:
             raise Exception("No user or user_id found")
@@ -475,7 +476,7 @@ def get_user(username=None, password=None, user_id=None):
     return query.one()
 
 def get_game(game_id, game_password=None):
-    query = Session().query(Game).filter_by(game_id=game_id)
+    query = Session().query(Game).filter_by(id=game_id)
 
     if game_password is not None:
         query = query.filter_by(password=game_password)

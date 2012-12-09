@@ -11,6 +11,12 @@ class BaseTest(unittest.TestCase):
         Session.remove()
         clear_all()
 
+class APIBaseTest(unittest.TestCase):
+    
+    def tearDown(self):
+        clear_all()
+
+
 def make_users(number_of_users, session=None):
     users = []
     for user_number in range(number_of_users):

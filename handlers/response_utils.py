@@ -41,7 +41,11 @@ def auth_required(http_method):
     def wrapper(self, *args, **kwargs):
         try:
             try: username = self.get_argument('username')
-            except: raise AuthenticationException("Must supply username")
+            except: 
+                if self.get_argument('game_master_username', None) is None:
+                    raise AuthenticationException("Must supply username")
+                else:
+                    username = self.get_argument('game_master_username')
             password = self.get_argument('password', None)
             secret_token = self.get_argument('secret_token', None)
             if password is None and secret_token is None:

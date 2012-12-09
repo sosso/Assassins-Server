@@ -1,5 +1,5 @@
-from handlers.response_utils import auth_required
-from models import User, Session, UserGame
+from handlers.response_utils import auth_required, get_response_dict
+from models import User, Session, UserGame, get_game
 from pkg_resources import StringIO
 from sqlalchemy.sql.functions import random
 import dbutils
@@ -48,3 +48,21 @@ class GrantPowerup(tornado.web.RequestHandler):
             session.rollback()
         Session.remove()
         self.finish(simplejson.dumps())
+        
+        
+class Start(tornado.web.RequestHandler):
+    @auth_required
+    @tornado.web.asynchronous
+    def post(self):
+        game_id = self.get_argument('game_id')
+        session = Session()
+        try:
+            game = get_game(game_id)
+            game.start()
+            response_dict = get_response_dict(True)
+        except Exception as e:
+            session.rollback()
+            response_dict = get_response_dict(False, e.message)
+        Session.remove()
+        self.finish(simplejson.dumps(response_dict))
+    

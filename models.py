@@ -19,11 +19,15 @@ import os
 
 if bool(os.environ.get('TEST_RUN', False)):
     engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
+    if bool(os.environ.get('ANTHONY_TABLET_RUN', False)):
+        engine = create_engine('mysql://root:root@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
+    else:
+        engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
 elif bool(os.environ.get('TEST_RUN_MIKE', False)):
     engine = create_engine('mysql://anthony@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
+
 else:
     engine = create_engine('mysql://bfc1ffabdb36c3:65da212b@us-cdbr-east-02.cleardb.com/heroku_1cec684f35035ce', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
-
 Base = declarative_base(bind=engine)
 sm = sessionmaker(bind=engine, autoflush=True, autocommit=False, expire_on_commit=False)
 Session = scoped_session(sm)
@@ -92,7 +96,10 @@ class Mission(Base):
             response_dict['completed'] = self.completed_timestamp.strftime("%Y-%m-%d %H:%M:%S")
         return response_dict
 
-class InvalidGameRosterException(Exception): "Must have two or more players and 1 game master"
+class InvalidGameRosterException(Exception): 
+    def __init__(self, message):
+        Exception.__init__(self, message)
+        self.message = message
 
 class Game(Base):
     __tablename__ = 'game'
@@ -117,7 +124,7 @@ class Game(Base):
             self.assign_initial_missions()
             self.started = True
         else:
-            raise InvalidGameRosterException
+            raise InvalidGameRosterException("Must have two or more players and 1 game master")
     
     def _get_game_masters(self):
         access_objects = object_session(self).query(UserGame).filter_by(game_id=self.id, is_game_master=True).all() 
@@ -299,7 +306,6 @@ class UserGame(Base):
                 'game_password':self.game.password, \
                 'game_friendly_name': self.game.title, \
                 'alive':self.alive}
-        response_dict['completed'] = self.completed_timestamp.strftime("%Y-%m-%d %H:%M:%S")
         return response_dict
     
 # I don't know that we need a separate class for this.  Shot can probably encapsulate it just fine?

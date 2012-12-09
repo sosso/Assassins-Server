@@ -29,6 +29,7 @@ class CreateUserHandler(tornado.web.RequestHandler):
             picture_binary = self.request.files['profile_picture'][0]['body']    
             create_user(username=username, password=password, profile_picture_binary=picture_binary)
             result_dict = get_response_dict(True)
+            result_dict['username'] = username
         except Exception, e:
             logger.exception(e)
             session.rollback()

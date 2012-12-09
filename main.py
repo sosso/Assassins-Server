@@ -39,6 +39,7 @@ class Application(tornado.web.Application):
 			(r"/game/powerup/viewenabled", PowerupHandlers.ViewEnabled),
 			(r"/game/master/kick", GameMasterHandlers.Kick),
 			(r"/game/master/grantpowerup", GameMasterHandlers.GrantPowerup),
+			(r"/game/master/start", GameMasterHandlers.Start),
 			(r"/account/login", AccountHandlers.LoginHandler),
 			(r"/account/createuser", AccountHandlers.CreateUserHandler),
 		]

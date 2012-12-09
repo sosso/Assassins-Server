@@ -215,7 +215,7 @@ class Game(Base):
         s = object_session(self)
         s.add_all(missions)
         s.flush()
-        
+        s.commit()
     
     def mission_completed(self, mission):
         #validate the mission belongs to this game

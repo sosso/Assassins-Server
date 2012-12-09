@@ -550,7 +550,6 @@ def get_game(game_id, game_password=None):
     
     return query.one()
 
-    
 def login(username, password):
     logger = logging.getLogger('login')
     session = Session()

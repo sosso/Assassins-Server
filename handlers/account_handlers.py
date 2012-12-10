@@ -16,7 +16,7 @@ class LoginHandler(BaseHandler):
             result_dict = get_response_dict(True)
         except Exception as e:
             logger.exception(e)
-            self.session.rollback()
+            Session().rollback()
             result_dict = get_response_dict(False, e.message)
         finally:
             logger.info('Login result_dict: %s' % str(result_dict))

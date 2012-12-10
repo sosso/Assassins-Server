@@ -1,7 +1,7 @@
 from handlers.response_utils import get_response_dict, auth_required, \
     BaseHandler
 from models import Session, get_user, Game, get_mission, get_missions, get_game, \
-    get_kills, Shot, get_usergames
+    get_kills, Shot, get_usergames, get_usergame
 import game_constants
 import imgur
 import logging
@@ -186,8 +186,12 @@ class GetListOfJoinedOrJoinGame(BaseHandler):
         try:
             user = get_user(username)
             game = get_game(game_id=game_id, game_password=game_password)
-            game.add_user(user)
-            response_dict = get_response_dict(True)
+            try:
+                usergame = get_usergame(user.id, game.id)
+                if usergame is not None:
+                    response_dict = get_response_dict(True)
+            except:
+                game.add_user(user)
         except Exception as e:
             session.rollback()
             response_dict = get_response_dict(False, e.message)

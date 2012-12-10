@@ -328,7 +328,9 @@ class UserGame(Base):
         response_dict = {'game_id':self.game_id, \
                 'game_password':self.game.password, \
                 'game_friendly_name': self.game.title, \
-                'alive':self.alive}
+                'alive':self.alive, \
+                'started':self.game.started, \
+                'completed':self.game.over}
         return response_dict
     
 # I don't know that we need a separate class for this.  Shot can probably encapsulate it just fine?
@@ -465,18 +467,18 @@ class Powerup(Base):
         ug = s.query(UserGame).filter_by(user_id=user.id, game_id=game.id).one()
         
         if(powerup.title == 'double_shot'):
-            ug.has_double_shot=True
+            ug.has_double_shot = True
         elif(powerup.title == 'fast_reload'):
-            ug.has_fast_reload=True
+            ug.has_fast_reload = True
         elif(powerup.title == 'body_double'):
-            ug.has_body_double=True
+            ug.has_body_double = True
             
         s.flush()
 
     def get_api_response_dict(self):
         response_dict = {'powerup_id':self.id, \
                 'powerup_name':self.title, \
-                'powerup_cost':self.cost,\
+                'powerup_cost':self.cost, \
                 'powerup_description':self.description }
         return response_dict
 
@@ -612,7 +614,7 @@ def get_powerup_id_by_name(powerup_title):
         powerup_id = session.query(Powerup).filter_by(title=powerup_title).one()
         return powerup_id
     except Exception, e:
-        raise Exception("Powerup "+powerup_title+" does not exist")
+        raise Exception("Powerup " + powerup_title + " does not exist")
     
 def list_powerups():
     s = Session()
@@ -647,7 +649,7 @@ def list_enabled_powerups(game_id):
     enabled_list = []
     powerups = list_powerups()
     
-    en = session.query(Game).filter_by(id = game_id).one()
+    en = session.query(Game).filter_by(id=game_id).one()
     if(en.body_double == True):
         enabled_list.append(powerups[0])
     if(en.fast_reload == True):
@@ -686,7 +688,7 @@ def purchase_powerup(user_id, game_id, powerup_id):
 def _activate(user_id, game_id, powerup):
     s = Session()
     
-    usergame =s.query(UserGame).filter_by(user_id=user_id, game_id=game_id).one()
+    usergame = s.query(UserGame).filter_by(user_id=user_id, game_id=game_id).one()
     
     if(powerup.title == 'body_double'):
         usergame.has_body_double = True

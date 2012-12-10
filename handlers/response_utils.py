@@ -55,7 +55,9 @@ def auth_required(http_method):
                 raise AuthenticationException("Must supply password and/or secret token")
             else:
                 try: user = get_user(username=username)
-                except: raise AuthenticationException("Invalid username")
+                except Exception as e: 
+                    logger.exception(e)
+                    raise AuthenticationException("Invalid username")
                 if password is not None:                
                     if not user.valid_password(password):
                         raise AuthenticationException("Invalid password")

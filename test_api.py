@@ -2,6 +2,7 @@ from test_utils import APIBaseTest
 import requests
 import simplejson
 import unittest
+from models import populate_powerups
 
 
 
@@ -107,24 +108,27 @@ class TestKillView(APIBaseTest):
     
 class TestPowerup(APIBaseTest):
     def test_available_powerups(self):
+        populate_powerups()
+        
         game_req = create_game()
         payload = {'username':'test_user0', 'game_id':game_req.json['game_id'],\
                    'secret_token':'test_pass'}
         powerups_enabled_req = requests.get(base_url+'game/powerup/available?', params=payload)
         self.assertTrue(isinstance(powerups_enabled_req.json, list))
         self.assertTrue(len(powerups_enabled_req.json) == 3)
-        self.assertTrue(False)
         
 def suite():
     user_tests = unittest.TestLoader().loadTestsFromTestCase(TestUser)
     game_tests = unittest.TestLoader().loadTestsFromTestCase(TestGame)
     gm_tests = unittest.TestLoader().loadTestsFromTestCase(TestGameMaster)
     kill_tests = unittest.TestLoader().loadTestsFromTestCase(TestKillView)
+    powerup_tests = unittest.TestLoader().loadTestsFromTestCase(TestPowerup)
     suites = []
 #    suites.append(user_tests)
 #    suites.append(game_tests)
 #    suites.append(gm_tests)
     suites.append(kill_tests)
+    suites.append(powerup_tests)
     return unittest.TestSuite(suites)
 
 if __name__ == '__main__':

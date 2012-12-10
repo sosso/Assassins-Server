@@ -460,11 +460,6 @@ class Powerup(Base):
         self.cost = cost
         self.description = description
         
-#    def add_to_powerups(self, title, cost):
-#        s = Session()
-#        powerup = get_or_create(s, Powerup, title=self.title, cost=self.cost)
-#        s.commit()
-        
     def add_user_powerup(self, user, game, powerup):
         s = Session()
         ug = s.query(UserGame).filter_by(user_id=user.id, game_id=game.id).one()
@@ -621,12 +616,13 @@ def get_powerup_id_by_name(powerup_title):
     
 def list_powerups():
     s = Session()
-    bdy_dbl = s.query(Powerup).filter_by(title = 'body_double').one()
-    fst_rld = s.query(Powerup).filter_by(title = 'fast_reload').one()
-    dbl_shot = s.query(Powerup).filter_by(title = 'double_shot').one()
-    s.flush()
+#    bdy_dbl = s.query(Powerup).filter_by(title = 'body_double').one()
+#    fst_rld = s.query(Powerup).filter_by(title = 'fast_reload').one()
+#    dbl_shot = s.query(Powerup).filter_by(title = 'double_shot').one()
     
-    return [bdy_dbl, fst_rld, dbl_shot]
+    powerups = s.query(Powerup).all()
+        
+    return powerups
 
 def list_enabled_powerups(game_id):
     session = Session()
@@ -684,6 +680,19 @@ def _activate(user_id, game_id, powerup):
         usergame.has_double_shot = True
         usergame.max_shots_per_24_hours *= 2
     s.flush()
+    
+def populate_powerups():
+    session = Session()
+    
+    dbl_shot_pwr = Powerup('double_shot', 3, "Double the number of shots you can fire in 24 hours")
+    reload_pwr = Powerup('fast_reload', 3, "Half the time it takes to fire again")
+    bdy_dbl_pwr = Powerup('body_double', 5, "Have a body double take a shot meant for you")
+    
+    session.add(dbl_shot_pwr)
+    session.add(reload_pwr)
+    session.add(bdy_dbl_pwr)
+    session.flush()
+    session.commit()
 
 Base.metadata.create_all(engine)
 

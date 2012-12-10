@@ -3,7 +3,7 @@ import os
 import requests
 
 def upload(base64img=None, file_body=None, file_path=None):
-    if bool(os.environ.get('TEST_RUN', False)):
+    if bool(os.environ.get('TEST_RUN', False)) or bool(os.environ.get('TEST_RUN_MIKE',False)):
         return 'http://i.imgur.com/test_image.png'
     api_key = '6c17943562b05127a1a181b8d4cb58f5'
     if base64img is not None:

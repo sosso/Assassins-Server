@@ -261,9 +261,9 @@ class TestPowerup(BaseTest):
     def test_create_powerup(self):
         
         # Create 3 powerups and add them to the table
-        dbl_shot_pwr = Powerup('double_shot', 3)
-        reload_pwr = Powerup('fast_reload', 3)
-        bdy_dbl_pwr = Powerup('body_double', 5)
+        dbl_shot_pwr = Powerup('double_shot', 3, "test 1")
+        reload_pwr = Powerup('fast_reload', 3, "test 2")
+        bdy_dbl_pwr = Powerup('body_double', 5, "test 3")
         
         self.session.add(dbl_shot_pwr)
         self.session.add(reload_pwr)
@@ -281,9 +281,9 @@ class TestPowerup(BaseTest):
         # game w/ gamemaster and confirm gamemaster can enable powerups
         
         # creating powerups
-        dbl_shot_pwr = Powerup('double_shot', 3)
-        reload_pwr = Powerup('fast_reload', 3)
-        bdy_dbl_pwr = Powerup('body_double', 5)
+        dbl_shot_pwr = Powerup('double_shot', 3, "test 1")
+        reload_pwr = Powerup('fast_reload', 3, "test 2")
+        bdy_dbl_pwr = Powerup('body_double', 5, "test 3")
         
         self.session.add(dbl_shot_pwr)
         self.session.add(reload_pwr)
@@ -317,9 +317,9 @@ class TestPowerup(BaseTest):
         # Step 8: Confirm each powerup has the desired effect on player
         
         # Step 0: Create 3 powerups and add them to the table
-        dbl_shot_pwr = Powerup('double_shot', 3)
-        reload_pwr = Powerup('fast_reload', 3)
-        bdy_dbl_pwr = Powerup('body_double', 5)
+        dbl_shot_pwr = Powerup('double_shot', 3, "test 1")
+        reload_pwr = Powerup('fast_reload', 3, "test 2")
+        bdy_dbl_pwr = Powerup('body_double', 5, "test 3")
         
         self.session.add(dbl_shot_pwr)
         self.session.add(reload_pwr)
@@ -342,7 +342,7 @@ class TestPowerup(BaseTest):
         
         # Step 5: Can users see enabled powerup(s)?
         enabled_powerups = game.list_enabled_powerups()
-        self.assertListEqual([dbl_shot_pwr], enabled_powerups)
+        self.assertListEqual([bdy_dbl_pwr, reload_pwr, dbl_shot_pwr ], enabled_powerups)
         
         # Step 6: Can users buy a powerup?
         purchase_powerup(users[0].id, game.id, dbl_shot_pwr.id)

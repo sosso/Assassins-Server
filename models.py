@@ -508,14 +508,15 @@ def get_shots_since(timestamp, user_id, game_id, valid_only=False):
 def get_mission(game_id, assassin_username=None, assassin_id=None, target_id=None, mission_id=None):
     if assassin_username is None and assassin_id is None:
         raise Exception("Must supply either an assassin_username or an assassin_id")
-    
-    query = Session().query(Mission).filter_by(game_id=game_id, completed_timestamp=None)
-    
+    logger = logging.getLogger('get_mission')
+    query = Session().query(Mission).filter_by(game_id=game_id)
+    logger.info('mission fetch: gameid: %s assassin_username: %s assassin_id: %s target_id:%s mission_id: %s' % (str(game_id), str(assassin_username), str(assassin_id), str(target_id), str(mission_id)))
     if mission_id is not None:
         query = query.filter_by(id=mission_id)
     
     if assassin_username is not None:
         user = get_user(username=assassin_username)
+        logger.info('via username, assassin_id is %s' % str(user.id))
         assassin_id = user.id
     
     query = query.filter_by(assassin_id=assassin_id)

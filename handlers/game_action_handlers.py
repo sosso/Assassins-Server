@@ -1,9 +1,10 @@
 from handlers.response_utils import get_response_dict, auth_required, \
     BaseHandler
 from models import Session, get_user, Game, get_mission, get_missions, get_game, \
-    get_kills, Shot, get_usergames
+    get_kills, Shot, get_usergames, get_usergame
 import game_constants
 import imgur
+import logging
 import simplejson
 import tornado.web
 
@@ -44,6 +45,7 @@ class ViewMission(BaseHandler):
         username = self.get_argument('username')
         game_id = self.get_argument('game_id')
         mission_id = self.get_argument('mission_id', None)
+        logger = logging.getLogger('ViewMission')
         session = Session()
         try:
             mission = get_mission(assassin_username=username, game_id=game_id, mission_id=mission_id)
@@ -53,6 +55,7 @@ class ViewMission(BaseHandler):
             session.rollback()
         finally:
             Session.remove()
+            logger.info('Mission returning %s' % str(simplejson.dumps(return_dict)))
             self.finish(simplejson.dumps(return_dict))
 
 #TODO handle game master case
@@ -183,8 +186,12 @@ class GetListOfJoinedOrJoinGame(BaseHandler):
         try:
             user = get_user(username)
             game = get_game(game_id=game_id, game_password=game_password)
-            game.add_user(user)
-            response_dict = get_response_dict(True)
+            try:
+                usergame = get_usergame(user.id, game.id)
+                if usergame is not None:
+                    response_dict = get_response_dict(True)
+            except:
+                game.add_user(user)
         except Exception as e:
             session.rollback()
             response_dict = get_response_dict(False, e.message)

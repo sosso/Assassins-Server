@@ -4,6 +4,7 @@ from models import Session, get_user, Game, get_mission, get_missions, get_game,
     get_kills, Shot, get_usergames
 import game_constants
 import imgur
+import logging
 import simplejson
 import tornado.web
 

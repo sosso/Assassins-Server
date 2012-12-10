@@ -101,6 +101,8 @@ class TestKillView(APIBaseTest):
         start_req = start_game(game_req)         
         assassin_req = assassinate(game_req=game_req, assassin_req=user_reqs[1], target_req=user_reqs[2])
         kills_list_req = get_kills_list(game_req, user_reqs[1])
+        self.assertTrue(isinstance(kills_list_req.json, list))
+        self.assertTrue(len(kills_list_req.json) == 1)
         pass
 def suite():
     user_tests = unittest.TestLoader().loadTestsFromTestCase(TestUser)

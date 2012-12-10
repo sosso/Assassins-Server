@@ -89,7 +89,7 @@ class Assassinate(tornado.web.RequestHandler):
             target_user = get_user(username=target_username)
             assassin_user = get_user(username=username)
             game = get_game(game_id)
-            mission = get_mission(game_id=game_id, assassin_username=username, target_username=target_username)
+            mission = get_mission(game_id=game_id, assassin_username=username, target_id=target_user.id)
             
             picture_binary = self.request.files['shot_picture'][0]['body']
             shot_picture_url = imgur.upload(file_body=picture_binary)

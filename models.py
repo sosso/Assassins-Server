@@ -354,8 +354,10 @@ class Kill(Base):
                 }
         if self.assassin_gps is not None:
             response_dict['location'] = self.assassin_gps
-        if self.completed_timestamp is not None:
-            response_dict['completed'] = self.completed_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            if self.completed_timestamp is not None:
+                response_dict['completed'] = self.completed_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        except: pass
         return response_dict
 
 

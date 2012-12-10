@@ -1,8 +1,8 @@
+from models import populate_powerups, Session, Powerup, get_usergame, get_user
 from test_utils import APIBaseTest
 import requests
 import simplejson
 import unittest
-from models import populate_powerups
 
 
 
@@ -116,6 +116,49 @@ class TestPowerup(APIBaseTest):
         powerups_enabled_req = requests.get(base_url+'game/powerup/available?', params=payload)
         self.assertTrue(isinstance(powerups_enabled_req.json, list))
         self.assertTrue(len(powerups_enabled_req.json) == 3)
+        
+    def test_disable_powerups(self):
+        populate_powerups()
+        
+        game_req = create_game()
+        s = Session()
+        powerups = s.query(Powerup).all()       
+        
+        payload = {'username':'test_user0', 'game_id':game_req.json['game_id'],\
+                   'secret_token':'test_pass', 'powerup_id':powerups[0].id}
+        powerups_disabled_req = requests.post(base_url+'game/powerup/disable?', params=payload)
+        
+        user_req = create_users(2)
+        join_req = join_game(game_req, user_req[1])
+        
+        payload1 = {'username':user_req[1].json['username'], 'game_id':game_req.json['game_id'],\
+                    'secret_token':'test_pass'}
+        
+        powerups_enabled_req = requests.get(base_url+'game/powerup/available?', params=payload1)
+        self.assertTrue(isinstance(powerups_enabled_req.json, list))
+        self.assertTrue(len(powerups_enabled_req.json) == 2)
+        Session.remove()
+        
+    def test_purchase_powerup(self):
+        populate_powerups()
+        
+        game_req = create_game()
+        s = Session()
+        powerups = s.query(Powerup).all()
+        
+        user_req = create_users(2)
+        join_req = join_game(game_req, user_req[1])
+        
+        payload = {'username':'test_user1', 'game_id':game_req.json['game_id'],\
+                   'secret_token':'test_pass', 'item_id':powerups[0].id}
+        
+        powerup_purchase_req = requests.post(base_url+'game/powerup/buy?', params=payload)
+        
+        user = get_user('test_user1')
+        user1_game = get_usergame(user.id, game_req.json['game_id'])
+        self.assertTrue(user1_game.has_double_shot)
+        Session.remove()
+        
         
 def suite():
     user_tests = unittest.TestLoader().loadTestsFromTestCase(TestUser)

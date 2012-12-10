@@ -1,7 +1,7 @@
 from models import get_user
+import logging
 import simplejson
 import tornado.web
-import logging
 def get_response_dict(success_bool, error_reason=None):
     response_dict = {}
     if success_bool:

@@ -1,6 +1,7 @@
 from models import get_user
 import simplejson
 import tornado.web
+import logging
 def get_response_dict(success_bool, error_reason=None):
     response_dict = {}
     if success_bool:
@@ -39,6 +40,7 @@ class BaseHandler(tornado.web.RequestHandler):
 
 def auth_required(http_method):
     def wrapper(self, *args, **kwargs):
+        logger = logging.getLogger('Auth_required')
         try:
             try: username = self.get_argument('username')
             except: 
@@ -59,7 +61,8 @@ def auth_required(http_method):
                 elif secret_token is not None:
                     if not user.valid_password(secret_token):
                         raise AuthenticationException("Invalid secret_token")
-        except:
+        except Exception as e:
+            logger.exception(e)
             raise    
         return http_method(self, *args, **kwargs)
     return wrapper

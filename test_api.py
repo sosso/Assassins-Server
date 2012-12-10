@@ -18,6 +18,10 @@ def create_users(count=1):
         reqs.append(requests.post(base_url + 'account/createuser?username=test_user%d&password=test_pass' % usernumber, files=files))#create, then make again
     return reqs
 
+def get_kills_list(game_req, user_req):
+    payload = {'username':user_req.json['username'], 'game_id':game_req.json['game_id'], 'secret_token':'test_pass'}
+    return requests.get(base_url + 'game/kills/view?', params=payload)
+
 def assassinate(game_req, assassin_req, target_req):
     payload = {'username':assassin_req.json['username'], \
                'target_username':target_req.json['username'], \
@@ -96,12 +100,19 @@ class TestKillView(APIBaseTest):
         join_req_2 = join_game(game_req, user_reqs[2])
         start_req = start_game(game_req)         
         assassin_req = assassinate(game_req=game_req, assassin_req=user_reqs[1], target_req=user_reqs[2])
+        kills_list_req = get_kills_list(game_req, user_reqs[1])
         pass
 def suite():
     user_tests = unittest.TestLoader().loadTestsFromTestCase(TestUser)
     game_tests = unittest.TestLoader().loadTestsFromTestCase(TestGame)
     gm_tests = unittest.TestLoader().loadTestsFromTestCase(TestGameMaster)
-    return unittest.TestSuite([user_tests, game_tests, gm_tests])
+    kill_tests = unittest.TestLoader().loadTestsFromTestCase(TestKillView)
+    suites = []
+#    suites.append(user_tests)
+#    suites.append(game_tests)
+#    suites.append(gm_tests)
+    suites.append(kill_tests)
+    return unittest.TestSuite(suites)
 
 if __name__ == '__main__':
     unittest.TextTestRunner(verbosity=2).run(suite())

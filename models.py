@@ -224,7 +224,13 @@ class Game(Base):
             #Get the target's mission to reassign it to the assassin
             targets_mission = object_session(self).query(Mission).filter_by(game_id=self.id, assassin_id=mission.target_id, completed_timestamp=None).one()
             mission.completed_timestamp = datetime.datetime.now()
-
+            kill = Kill(game_id=mission.game_id, assassin_id=mission.assassin_id, target_id=mission.target_id,
+                        kill_picture_url='')
+            s = object_session(self)
+            s.add(kill)
+            s.flush()
+            s.commit()
+            
             #Mark the target as dead
             target_usergame = get_usergame(mission.target_id, mission.game_id)
             target_usergame.alive = False

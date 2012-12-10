@@ -13,6 +13,7 @@ class LoginHandler(BaseHandler):
         try:
             result_dict = get_response_dict(True)
         except Exception as e:
+            self.session.rollback()
             result_dict = get_response_dict(False, e.message)
         finally:
             self.finish(simplejson.dumps(result_dict))

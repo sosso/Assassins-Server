@@ -41,6 +41,7 @@ class BaseHandler(tornado.web.RequestHandler):
 def auth_required(http_method):
     def wrapper(self, *args, **kwargs):
         logger = logging.getLogger('Auth_required')
+        logger.info('Auth request: %s' % self.get_argument('username', 'no username'))
         try:
             try: username = self.get_argument('username')
             except: 

@@ -56,7 +56,7 @@ def auth_required(http_method):
             else:
                 try: user = get_user(username=username)
                 except Exception as e: 
-                    Session().rollback()
+                    self.session.rollback()
                     logger.exception(e)
                     raise AuthenticationException("Invalid username")
                 if password is not None:                
@@ -66,7 +66,7 @@ def auth_required(http_method):
                     if not user.valid_password(secret_token):
                         raise AuthenticationException("Invalid secret_token")
         except Exception as e:
-            Session().rollback()
+            self.session.rollback()
             logger.exception(e)
             raise    
         return http_method(self, *args, **kwargs)

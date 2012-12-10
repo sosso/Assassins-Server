@@ -106,7 +106,7 @@ class Assassinate(BaseHandler):
                 game.mission_completed(mission, player_shooting_target)
                 response_dict = get_response_dict(True)
             else:
-                response_dict = get_response_dict(False, "Shot invalid.  If this was your target in this game, maybe you need to wait?")
+                response_dict = get_response_dict(False, "Shot invalid.  If this was your target in this game, maybe they had a body double or you need to wait?")
             
         except Exception as e:
             session.rollback()

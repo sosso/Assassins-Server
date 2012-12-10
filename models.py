@@ -1,6 +1,7 @@
 from dbutils import get_or_create
 from game_constants import DEFAULT_STARTING_MONEY, MAX_SHOT_INTERVAL_MINUTES, \
-    MAX_SHOTS_PER_24_HOURS
+    MAX_SHOTS_PER_24_HOURS, DOUBLE_SHOT_PRICE, FAST_RELOAD_PRICE, BODY_DOUBLE_PRICE, \
+    MISSION_COMPLETE_PAY
 from passlib.handlers.sha2_crypt import sha256_crypt
 from sqlalchemy import Column, Integer, VARCHAR, INTEGER
 from sqlalchemy.engine import create_engine
@@ -250,6 +251,12 @@ class Game(Base):
             if targets_mission.target_id == mission.assassin_id: #meaning the players in question were targeting each other, and that the game should probably be over
                 self.game_over()
             else:
+                # Increase money of assassin for successfully completing mission
+                s = object_session(self)
+                assassin_usergame = s.query(UserGame).filter_by(user_id=mission.assassin_id, game_id=mission.game_id).one()
+                assassin_usergame.money = assassin_usergame.money + MISSION_COMPLETE_PAY
+                s.flush()
+                s.commit()
                 self.reassign_mission(new_assassin_id=mission.assassin_id, mission_to_reassign=targets_mission)
         else:
             raise Exception("Supplied mission does not belong to this game!")
@@ -270,7 +277,7 @@ class Game(Base):
             session.rollback()
             self.logger.exception(e)
             
-    def disable_powerup(self, game_master_id, *enabled_powerups):
+    def disable_powerup(self, game_master_id, *enabled_powerup_ids):
         s = Session()
         game = s.query(Game).filter_by(id=self.id)
         dbl_shot_id = s.query(Powerup).filter_by(title='double_shot').value('id')
@@ -279,21 +286,19 @@ class Game(Base):
         
         for gm in self.game_masters:
             if(gm.id == game_master_id):
-                for p in enabled_powerups:
-                    if(p == body_double_id):
+                for p in enabled_powerup_ids:
+                    if(long(p) == body_double_id):
                         self.body_double = False
-                    elif(p == fast_reload_id):
+                    elif(long(p) == fast_reload_id):
                         self.fast_reload = False
-                    elif(p == dbl_shot_id):
+                    elif(long(p) == dbl_shot_id):
                         self.double_shot = False
         s.flush()
+        s.commit()
         
-
     def list_enabled_powerups(self):
         return list_enabled_powerups(self.id)
             
-                
-        
 
 class UserGame(Base):
     __tablename__ = 'user_game'
@@ -408,6 +413,7 @@ class Shot(Base):
     # 1: the assassin had a mission targeting the target
     # 2: the assassin has remaining shots for the day
     # 3: the assassin does not need to wait for another shot
+    # 4: the target does not have a body double
     
     def is_valid(self):
         
@@ -439,6 +445,11 @@ class Shot(Base):
                 time_between_last_shot_and_this_one = self.timestamp - most_recent_shot.timestamp  
                 if time_between_last_shot_and_this_one < minimum_timedelta_between_shots:
                     return False
+            
+            #Step 4: Does the target have a body double?
+            if target_usergame.has_body_double:
+                remove_body_double(target_usergame.user_id, target_usergame.game_id)
+                return False
             
             self.valid = True
             return True
@@ -544,7 +555,6 @@ def get_kills(game_id, assassin_username=None, assassin_id=None):
     
     return query.all()
 
-
 def get_usergame(user_id, game_id):
         return Session().query(UserGame).filter_by(user_id=user_id, game_id=game_id).one()
 
@@ -608,19 +618,30 @@ def clear_all():
     for table in reversed(Base.metadata.sorted_tables):
         engine.execute(table.delete())
         
-def get_powerup_id_by_name(powerup_title):
-    session = Session()
-    try:
-        powerup_id = session.query(Powerup).filter_by(title=powerup_title).one()
-        return powerup_id
-    except Exception, e:
-        raise Exception("Powerup " + powerup_title + " does not exist")
+def get_powerup(powerup_title=None, powerup_id=None):
+    if powerup_title is None and powerup_id is None:
+        return None
     
+    query = Session().query(Powerup)
+    
+    if powerup_title is not None:
+        query = query.filter_by(title=powerup_title)
+        
+    if powerup_id is not None:
+        query = query.filter_by(id=powerup_id)
+        
+    try:
+        return query.one()
+    except Exception, e:
+        if powerup_title is not None:
+            raise PowerupException("Powerup "+powerup_title+" does not exist")
+        elif powerup_id is not None:
+            raise PowerupException("Powerup "+powerup_id+" does not exist")
+        else:
+            raise e
+        
 def list_powerups():
     s = Session()
-#    bdy_dbl = s.query(Powerup).filter_by(title = 'body_double').one()
-#    fst_rld = s.query(Powerup).filter_by(title = 'fast_reload').one()
-#    dbl_shot = s.query(Powerup).filter_by(title = 'double_shot').one()
     
     powerups = s.query(Powerup).all()
         
@@ -703,9 +724,16 @@ def _activate(user_id, game_id, powerup):
 def populate_powerups():
     session = Session()
     
-    dbl_shot_pwr = get_or_create(session, Powerup, title='double_shot', cost=3, description="Double the number of shots you can fire in 24 hours")
-    reload_pwr = get_or_create(session, Powerup, title='fast_reload', cost=3, description="Half the time it takes to fire again")
-    bdy_dbl_pwr = get_or_create(session, Powerup, title='body_double', cost=5, description="Have a body double take a shot meant for you")
+    dbl_shot_pwr = get_or_create(session, Powerup, title='double_shot', cost=DOUBLE_SHOT_PRICE, description="Double the number of shots you can fire in 24 hours")
+    reload_pwr = get_or_create(session, Powerup, title='fast_reload', cost=FAST_RELOAD_PRICE, description="Half the time it takes to fire again")
+    bdy_dbl_pwr = get_or_create(session, Powerup, title='body_double', cost=BODY_DOUBLE_PRICE, description="Have a body double take a shot meant for you")
+    session.commit()
+
+def remove_body_double(user_id, game_id):
+    session = Session()
+    ug = session.query(UserGame).filter_by(user_id=user_id, game_id=game_id).one()
+    ug.has_body_double = False
+    session.flush()
     session.commit()
 
 Base.metadata.create_all(engine)

@@ -1,4 +1,5 @@
-from handlers.response_utils import get_response_dict, auth_required
+from handlers.response_utils import get_response_dict, auth_required, \
+    BaseHandler
 from models import Session, get_user, Game, get_mission, get_missions, get_game, \
     get_kills, Shot, get_usergames
 import game_constants
@@ -8,7 +9,7 @@ import tornado.web
 
 #logger = logging.getLogger('modelhandlers')
 
-class CreateGame(tornado.web.RequestHandler):
+class CreateGame(BaseHandler):
     @tornado.web.asynchronous
     @auth_required
     def post(self):
@@ -36,7 +37,7 @@ class CreateGame(tornado.web.RequestHandler):
             Session.remove()
             self.finish(simplejson.dumps(result_dict))
 
-class ViewMission(tornado.web.RequestHandler):
+class ViewMission(BaseHandler):
     @tornado.web.asynchronous
     @auth_required
     def get(self):
@@ -55,7 +56,7 @@ class ViewMission(tornado.web.RequestHandler):
             self.finish(simplejson.dumps(return_dict))
 
 #TODO handle game master case
-class ViewAllMissions(tornado.web.RequestHandler):
+class ViewAllMissions(BaseHandler):
     @tornado.web.asynchronous
     @auth_required
     def get(self):
@@ -75,7 +76,7 @@ class ViewAllMissions(tornado.web.RequestHandler):
             Session.remove()
             self.finish(simplejson.dumps(return_dict))
 
-class Assassinate(tornado.web.RequestHandler):
+class Assassinate(BaseHandler):
     @tornado.web.asynchronous
     @auth_required
     def post(self):
@@ -115,7 +116,7 @@ class Assassinate(tornado.web.RequestHandler):
             self.finish(simplejson.dumps(response_dict))
 
 #TODO
-class DisputeHandler(tornado.web.RequestHandler):
+class DisputeHandler(BaseHandler):
     @auth_required
     @tornado.web.asynchronous
     def get(self):
@@ -132,7 +133,7 @@ class DisputeHandler(tornado.web.RequestHandler):
             Session.remove()
             self.finish(finish_string)
 
-class ViewKills(tornado.web.RequestHandler):
+class ViewKills(BaseHandler):
     @auth_required
     @tornado.web.asynchronous
     def get(self):
@@ -152,7 +153,7 @@ class ViewKills(tornado.web.RequestHandler):
             Session.remove()
             self.finish(simplejson.dumps(return_obj))
 
-class GetListOfJoinedOrJoinGame(tornado.web.RequestHandler):
+class GetListOfJoinedOrJoinGame(BaseHandler):
     @auth_required
     @tornado.web.asynchronous
     def get(self):

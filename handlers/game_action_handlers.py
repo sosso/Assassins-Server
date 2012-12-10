@@ -102,7 +102,7 @@ class Assassinate(tornado.web.RequestHandler):
             session.flush()
             session.commit()
             if player_shooting_target.is_valid():
-                game.mission_completed(mission)
+                game.mission_completed(mission, player_shooting_target)
                 response_dict = get_response_dict(True)
             else:
                 response_dict = get_response_dict(False, "Shot invalid.  If this was your target in this game, maybe you need to wait?")

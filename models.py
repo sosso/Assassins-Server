@@ -217,15 +217,20 @@ class Game(Base):
         s.flush()
         s.commit()
     
-    def mission_completed(self, mission):
+    def mission_completed(self, mission, shot=None):
         #validate the mission belongs to this game
         if mission.game_id == self.id:
             pass
             #Get the target's mission to reassign it to the assassin
             targets_mission = object_session(self).query(Mission).filter_by(game_id=self.id, assassin_id=mission.target_id, completed_timestamp=None).one()
             mission.completed_timestamp = datetime.datetime.now()
-            kill = Kill(game_id=mission.game_id, assassin_id=mission.assassin_id, target_id=mission.target_id,
+            if shot is not None:
+                kill = Kill(game_id=mission.game_id, assassin_id=mission.assassin_id, target_id=mission.target_id,
+                        kill_picture_url=shot.shot_picture)
+            else:
+                kill = Kill(game_id=mission.game_id, assassin_id=mission.assassin_id, target_id=mission.target_id,
                         kill_picture_url='')
+            
             s = object_session(self)
             s.add(kill)
             s.flush()

@@ -10,12 +10,16 @@ class LoginHandler(BaseHandler):
     @auth_required
     @tornado.web.asynchronous
     def post(self):
+        logger = logging.getLogger('LoginHandler')
         try:
+            logger.info('Login request: %s %s' % (self.get_argument('username'), self.get_argument('password')))
             result_dict = get_response_dict(True)
         except Exception as e:
+            logger.exception(e)
             self.session.rollback()
             result_dict = get_response_dict(False, e.message)
         finally:
+            logger.info('Login result_dict: %s' % str(result_dict))
             self.finish(simplejson.dumps(result_dict))
 
 class CreateUserHandler(tornado.web.RequestHandler):

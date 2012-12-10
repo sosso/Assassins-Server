@@ -1,8 +1,9 @@
 from handlers.response_utils import auth_required, get_response_dict
-from models import Session, get_user, purchase_powerup, list_enabled_powerups
+from models import Session, get_user, purchase_powerup, list_enabled_powerups, \
+    list_powerup_for_usergame
+import logging
 import simplejson
 import tornado.web
-import logging
 
 #logger = logging.getLogger('modelhandlers')
 
@@ -49,16 +50,24 @@ class Inventory(tornado.web.RequestHandler):
     @auth_required
     def get(self):
         username = self.get_argument('username')
-        session = Session()
+        game_id = self.get_argument('game_id')      
+       
         try:
-            pass
-            final_string = "User creation successful!"
+            session = Session()
+         
+            user = get_user(username)
+            pwrlist = list_powerup_for_usergame(user, game_id)
+            purchased_json_array = []
+            for powerup in pwrlist:
+                purchased_json_array.append(powerup.get_api_response_dict())
+            return_obj = purchased_json_array
+            
         except Exception, e:
             session.rollback()
-            final_string = "User creation failed."
+            return_obj = []
         finally:
             Session.remove()
-            self.finish(final_string)
+            self.finish(simplejson.dumps(return_obj))
 
 class ViewAvailable(tornado.web.RequestHandler):
     @tornado.web.asynchronous

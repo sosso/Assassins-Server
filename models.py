@@ -101,6 +101,11 @@ class InvalidGameRosterException(Exception):
         Exception.__init__(self, message)
         self.message = message
 
+class PowerupException(Exception):
+    def __init__(self, message):
+        Exception.__init__(self, message)
+        self.message = message
+
 class Game(Base):
     __tablename__ = 'game'
     #column definitions
@@ -115,9 +120,9 @@ class Game(Base):
     over = Column(Boolean(), default=False)
     
     #Powerup Enabled Columns
-    body_double = Column(Boolean(), default=False)
-    fast_reload = Column(Boolean(), default=False)
-    double_shot = Column(Boolean(), default=False)
+    body_double = Column(Boolean(), default=True)
+    fast_reload = Column(Boolean(), default=True)
+    double_shot = Column(Boolean(), default=True)
     
     def start(self):
         if len(self.get_players()) > 1 and len(self.game_masters) > 0:
@@ -251,7 +256,7 @@ class Game(Base):
             session.rollback()
             self.logger.exception(e)
             
-    def enable_powerup(self, game_master_id, *enabled_powerups):
+    def disable_powerup(self, game_master_id, *enabled_powerups):
         s = Session()
         game = s.query(Game).filter_by(id=self.id)
         dbl_shot_id = s.query(Powerup).filter_by(title='double_shot').value('id')
@@ -262,12 +267,16 @@ class Game(Base):
             if(gm.id == game_master_id):
                 for p in enabled_powerups:
                     if(p == body_double_id):
-                        self.body_double = True
+                        self.body_double = False
                     elif(p == fast_reload_id):
-                        self.fast_reload = True
+                        self.fast_reload = False
                     elif(p == dbl_shot_id):
-                        self.double_shot = True
+                        self.double_shot = False
         s.flush()
+        
+
+    def list_enabled_powerups(self):
+        return list_enabled_powerups(self.id)
             
                 
         
@@ -428,10 +437,12 @@ class Powerup(Base):
     
     title = Column(VARCHAR(length=255))
     cost = Column(INTEGER())
+    description = Column(VARCHAR(length=255))
     
-    def __init__(self, title, cost):
+    def __init__(self, title, cost, description):
         self.title = title
         self.cost = cost
+        self.description = description
         
 #    def add_to_powerups(self, title, cost):
 #        s = Session()
@@ -450,6 +461,13 @@ class Powerup(Base):
             ug.has_body_double=True
             
         s.flush()
+
+    def get_api_response_dict(self):
+        response_dict = {'powerup_id':self.id, \
+                'powerup_name':self.title, \
+                'powerup_cost':self.cost,\
+                'powerup_description':self.description }
+        return response_dict
 
 def get_shots_since(timestamp, user_id, game_id, valid_only=False):
     shots = Session().query(Shot).filter_by(assassin_id=user_id, game_id=game_id, valid=True).all()
@@ -585,7 +603,72 @@ def get_powerup_id_by_name(powerup_title):
         return powerup_id
     except Exception, e:
         raise Exception("Powerup "+powerup_title+" does not exist")
+    
+def list_powerups():
+    s = Session()
+    bdy_dbl = s.query(Powerup).filter_by(title = 'body_double').one()
+    fst_rld = s.query(Powerup).filter_by(title = 'fast_reload').one()
+    dbl_shot = s.query(Powerup).filter_by(title = 'double_shot').one()
+    s.flush()
+    
+    return [bdy_dbl, fst_rld, dbl_shot]
 
+def list_enabled_powerups(game_id):
+    session = Session()
+    enabled_list = []
+    powerups = list_powerups()
+    
+    en = session.query(Game).filter_by(id = game_id).one()
+    if(en.body_double == True):
+        enabled_list.append(powerups[0])
+    if(en.fast_reload == True):
+        enabled_list.append(powerups[1])
+    if(en.double_shot == True):
+        enabled_list.append(powerups[2])
+        
+    session.flush()
+    return enabled_list
+        
+def purchase_powerup(user_id, game_id, powerup_id):
+    s = Session()
+    
+    usergame = get_usergame(user_id, game_id)
+    powerup = s.query(Powerup).filter_by(id=powerup_id).one()
+    
+    # Things to stop you from purchasing
+    if(usergame.alive != True):
+        raise PowerupException("You are dead.")
+    if(usergame.money == 0):
+        raise PowerupException("You have no money.")
+    if(usergame.has_body_double == True and powerup.title == 'body_double'):
+        raise PowerupException("You have already purchased a body double.")
+    if(usergame.has_fast_reload == True and powerup.title == 'fast_reload'):
+        raise PowerupException("You have already purchased fast reload")
+    if(usergame.has_double_shot == True and powerup.title == 'double_shot'):
+        raise PowerupException("You have already purchased double shot")
+    
+    if(usergame.money >= powerup.cost):
+        usergame.money = usergame.money - powerup.cost
+        _activate(user_id, game_id, powerup)
+    else:
+        raise PowerupException("You do not have enough money for that powerup")
+    
+    s.flush()
+    
+def _activate(user_id, game_id, powerup):
+    s = Session()
+    
+    usergame =s.query(UserGame).filter_by(user_id=user_id, game_id=game_id).one()
+    
+    if(powerup.title == 'body_double'):
+        usergame.has_body_double = True
+    elif(powerup.title == 'fast_reload'):
+        usergame.has_fast_reload = True
+        usergame.max_shot_interval_minutes /= 2
+    elif(powerup.title == 'double_shot'):
+        usergame.has_double_shot = True
+        usergame.max_shots_per_24_hours *= 2
+    s.flush()
 
 Base.metadata.create_all(engine)
 

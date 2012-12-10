@@ -1,10 +1,13 @@
-from models import User, Game, login, Kill, Mission, Shot,\
-    InvalidGameRosterException, Powerup
-
+from game_constants import MAX_SHOTS_PER_24_HOURS, MAX_SHOT_INTERVAL_MINUTES
+from models import User, Game, login, Kill, Mission, Shot, \
+    InvalidGameRosterException, Powerup, UserGame, purchase_powerup, \
+    PowerupException, get_usergame
 from test_utils import BaseTest, make_users, make_game, make_game_with_master
-
 import datetime
 import unittest
+    
+
+
 
 class TestUser(BaseTest):
     
@@ -292,14 +295,14 @@ class TestPowerup(BaseTest):
         self.session.flush()
         
         # Enable Powerups for game
-        game.enable_powerup(game_master.id, dbl_shot_pwr.id)
-        self.assertTrue(self.session.query(Game).filter_by(id=game.id).value('double_shot'))
+        game.disable_powerup(game_master.id, dbl_shot_pwr.id)
+        self.assertFalse(self.session.query(Game).filter_by(id=game.id).value('double_shot'))
         
-        game.enable_powerup(game_master.id, reload_pwr.id)
-        self.assertTrue(self.session.query(Game).filter_by(id=game.id).value('fast_reload'))
+        game.disable_powerup(game_master.id, reload_pwr.id)
+        self.assertFalse(self.session.query(Game).filter_by(id=game.id).value('fast_reload'))
         
-        game.enable_powerup(game_master.id, bdy_dbl_pwr.id)
-        self.assertTrue(self.session.query(Game).filter_by(id=game.id).value('body_double'))
+        game.disable_powerup(game_master.id, bdy_dbl_pwr.id)
+        self.assertFalse(self.session.query(Game).filter_by(id=game.id).value('body_double'))
         
     def test_purchase_powerup(self):
         # Steps for testing
@@ -314,30 +317,60 @@ class TestPowerup(BaseTest):
         # Step 8: Confirm each powerup has the desired effect on player
         
         # Step 0: Create 3 powerups and add them to the table
-#        dbl_shot_pwr = Powerup('double_shot', 3)
-#        reload_pwr = Powerup('fast_reload', 3)
-#        bdy_dbl_pwr = Powerup('body_double', 5)
-#        
-#        self.session.add(dbl_shot_pwr)
-#        self.session.add(reload_pwr)
-#        self.session.add(bdy_dbl_pwr)
-#        self.session.flush()
+        dbl_shot_pwr = Powerup('double_shot', 3)
+        reload_pwr = Powerup('fast_reload', 3)
+        bdy_dbl_pwr = Powerup('body_double', 5)
         
-        
+        self.session.add(dbl_shot_pwr)
+        self.session.add(reload_pwr)
+        self.session.add(bdy_dbl_pwr)
+        self.session.flush()
         
         # Step 1: Create a game and gamemaster
-#        game_master, game = make_game_with_master(self.session)
-#        game.add_game_master(game_master)
+        game_master, game = make_game_with_master(self.session)
         
         # Step 2: Enable a powerup for the game
-#        double_shot = get_powerup_id_by_name('double_shot')
-#        game.enable_powerup(game_master.id, double_shot)
-#        self.asserEquals(double_shot, self.session.query(Game).filter_by(powerups_enabled != None).all())
-#        
-#        game.start()
+        #game.disable_powerup(game_master.id, dbl_shot_pwr.id)
         
+        # Step 3: Add users to the game
+        users = make_users(2, self.session)
+        game.add_user(users[0])
+        game.add_user(users[1])
         
+        # Step 4: Start game
+        game.start()
         
+        # Step 5: Can users see enabled powerup(s)?
+        enabled_powerups = game.list_enabled_powerups()
+        self.assertListEqual([dbl_shot_pwr], enabled_powerups)
+        
+        # Step 6: Can users buy a powerup?
+        purchase_powerup(users[0].id, game.id, dbl_shot_pwr.id)
+        self.assertTrue(self.session.query(UserGame).filter_by(user_id=users[0].id, game_id=game.id).value('has_double_shot'))
+        
+        # Step 7: Check for exceptions
+        # Buying the same powerup
+        self.assertRaises(PowerupException, purchase_powerup, users[0].id, game.id, dbl_shot_pwr.id)
+        # Not enough money
+        self.assertRaises(PowerupException, purchase_powerup, users[0].id, game.id, bdy_dbl_pwr.id)
+        usergame = get_usergame(user_id=users[1].id, game_id=game.id)
+        usergame.money = 0
+        # No money
+        self.assertRaises(PowerupException, purchase_powerup, users[1].id, game.id, dbl_shot_pwr.id)
+        # Caller Dead
+        usergame.money = 50
+        usergame.alive = False
+        self.assertRaises(PowerupException, purchase_powerup, users[1].id, game.id, dbl_shot_pwr.id)
+        
+        # Step 8: Confirm powerup effects
+        usergame.alive = True
+        self.assertEqual(MAX_SHOTS_PER_24_HOURS*2, self.session.query(UserGame).filter_by(user_id=users[0].id, game_id=game.id).value('max_shots_per_24_hours'))
+        purchase_powerup(users[1].id, game.id, bdy_dbl_pwr.id)
+        self.assertTrue(self.session.query(UserGame).filter_by(user_id=users[1].id, game_id=game.id).value('has_body_double'))
+        
+        purchase_powerup(users[1].id, game.id, reload_pwr.id)
+        shot_interval = self.session.query(UserGame).filter_by(user_id=users[1].id, game_id=game.id).value('max_shot_interval_minutes')
+        self.assertEqual(MAX_SHOT_INTERVAL_MINUTES/2, shot_interval)
 
 def suite():
     user_tests = unittest.TestLoader().loadTestsFromTestCase(TestUser)

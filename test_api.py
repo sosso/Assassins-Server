@@ -113,6 +113,7 @@ class TestPowerup(APIBaseTest):
         powerups_enabled_req = requests.get(base_url+'game/powerup/available?', params=payload)
         self.assertTrue(isinstance(powerups_enabled_req.json, list))
         self.assertTrue(len(powerups_enabled_req.json) == 3)
+        self.assertTrue(False)
         
 def suite():
     user_tests = unittest.TestLoader().loadTestsFromTestCase(TestUser)

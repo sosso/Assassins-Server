@@ -13,6 +13,9 @@ class BaseTest(unittest.TestCase):
 
 class APIBaseTest(unittest.TestCase):
     
+    def setUp(self):
+        clear_all()
+        
     def tearDown(self):
         clear_all()
 

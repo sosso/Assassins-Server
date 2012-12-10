@@ -88,21 +88,25 @@ class Assassinate(tornado.web.RequestHandler):
         try:
             target_user = get_user(username=target_username)
             assassin_user = get_user(username=username)
+            game = get_game(game_id)
+            mission = get_mission(game_id=game_id, assassin_username=username, target_id=target_user.id)
             
             picture_binary = self.request.files['shot_picture'][0]['body']
             shot_picture_url = imgur.upload(file_body=picture_binary)
 
             player_shooting_target = Shot(assassin_id=assassin_user.id, \
-                                        target_id=target_user.target_id, \
+                                        target_id=target_user.id, \
                                         game_id=game_id, \
                                         shot_picture=shot_picture_url)
-            if player_shooting_target.is_valid():
-                response_dict = get_response_dict(True)
-            else:
-                response_dict = get_response_dict(False, "Shot invalid.  If this was your target in this game, maybe you need to wait?")
             session.add(player_shooting_target)
             session.flush()
             session.commit()
+            if player_shooting_target.is_valid():
+                game.mission_completed(mission, player_shooting_target)
+                response_dict = get_response_dict(True)
+            else:
+                response_dict = get_response_dict(False, "Shot invalid.  If this was your target in this game, maybe you need to wait?")
+            
         except Exception as e:
             session.rollback()
             response_dict = get_response_dict(False, e.message)

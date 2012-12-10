@@ -505,7 +505,7 @@ def get_mission(game_id, assassin_username=None, assassin_id=None, target_id=Non
     
     if assassin_username is not None:
         user = get_user(username=assassin_username)
-        logger.info('via username, assassin_id is ')
+        logger.info('via username, assassin_id is %s' % str(user.id))
         assassin_id = user.id
     
     query = query.filter_by(assassin_id=assassin_id)

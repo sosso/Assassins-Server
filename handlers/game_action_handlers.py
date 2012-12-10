@@ -44,6 +44,7 @@ class ViewMission(BaseHandler):
         username = self.get_argument('username')
         game_id = self.get_argument('game_id')
         mission_id = self.get_argument('mission_id', None)
+        logger = logging.getLogger('ViewMission')
         session = Session()
         try:
             mission = get_mission(assassin_username=username, game_id=game_id, mission_id=mission_id)
@@ -53,6 +54,7 @@ class ViewMission(BaseHandler):
             session.rollback()
         finally:
             Session.remove()
+            logger.info('Mission returning %s' % str(simplejson.dumps(return_dict)))
             self.finish(simplejson.dumps(return_dict))
 
 #TODO handle game master case

@@ -36,7 +36,7 @@ class Application(tornado.web.Application):
 			(r"/game/powerup/buy", PowerupHandlers.BuyPowerup),
 			(r"/game/powerup/activate", PowerupHandlers.ActivatePowerup),
 			(r"/game/powerup/inventory", PowerupHandlers.Inventory),
-			(r"/game/powerup/viewenabled", PowerupHandlers.ViewEnabled),
+			(r"/game/powerup/available", PowerupHandlers.ViewAvailable),
 			(r"/game/master/kick", GameMasterHandlers.Kick),
 			(r"/game/master/grantpowerup", GameMasterHandlers.GrantPowerup),
 			(r"/game/master/start", GameMasterHandlers.Start),

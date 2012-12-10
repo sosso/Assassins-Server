@@ -6,7 +6,7 @@ import logging
 
 #logger = logging.getLogger('modelhandlers')
 
-class BuyPowerupHandler(tornado.web.RequestHandler):
+class BuyPowerup(tornado.web.RequestHandler):
     @auth_required
     @tornado.web.asynchronous
     def post(self):

@@ -19,6 +19,7 @@ class LoginHandler(BaseHandler):
             self.session.rollback()
             result_dict = get_response_dict(False, e.message)
         finally:
+            logger.info('Login result_dict: %s' % str(result_dict))
             self.finish(simplejson.dumps(result_dict))
 
 class CreateUserHandler(tornado.web.RequestHandler):

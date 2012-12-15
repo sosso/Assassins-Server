@@ -5,6 +5,7 @@
 #
 
 #!/usr/bin/env python
+from models import populate_powerups
 from tornado.options import define
 import handlers.account_handlers as AccountHandlers
 import handlers.game_action_handlers as GameActionHandlers
@@ -34,9 +35,9 @@ class Application(tornado.web.Application):
 			(r"/game/kills/view", GameActionHandlers.ViewKills),
 			(r"/game/", GameActionHandlers.GetListOfJoinedOrJoinGame),
 			(r"/game/powerup/buy", PowerupHandlers.BuyPowerup),
-			(r"/game/powerup/activate", PowerupHandlers.ActivatePowerup),
 			(r"/game/powerup/inventory", PowerupHandlers.Inventory),
-			(r"/game/powerup/viewenabled", PowerupHandlers.ViewEnabled),
+			(r"/game/powerup/available", PowerupHandlers.ViewAvailable),
+			(r"/game/powerup/disable", PowerupHandlers.DisablePowerup),
 			(r"/game/master/kick", GameMasterHandlers.Kick),
 			(r"/game/master/grantpowerup", GameMasterHandlers.GrantPowerup),
 			(r"/game/master/start", GameMasterHandlers.Start),
@@ -74,9 +75,10 @@ def main():
 	http_server = tornado.httpserver.HTTPServer(Application())
 	http_server.listen(os.environ.get("PORT", 5000))
 
+	populate_powerups()
+
 	# start it up
 	tornado.ioloop.IOLoop.instance().start()
-
 
 if __name__ == "__main__":
 	main()

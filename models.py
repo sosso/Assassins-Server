@@ -1,6 +1,7 @@
 from dbutils import get_or_create
 from game_constants import DEFAULT_STARTING_MONEY, MAX_SHOT_INTERVAL_MINUTES, \
-    MAX_SHOTS_PER_24_HOURS
+    MAX_SHOTS_PER_24_HOURS, DOUBLE_SHOT_PRICE, FAST_RELOAD_PRICE, BODY_DOUBLE_PRICE, \
+    MISSION_COMPLETE_PAY
 from passlib.handlers.sha2_crypt import sha256_crypt
 from sqlalchemy import Column, Integer, VARCHAR, INTEGER
 from sqlalchemy.engine import create_engine
@@ -18,12 +19,24 @@ import os
 # from passlib.hash import sha256_crypt
 
 if bool(os.environ.get('TEST_RUN', False)):
+    engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
     if bool(os.environ.get('ANTHONY_TABLET_RUN', False)):
         engine = create_engine('mysql://root:root@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)  # recycle connection every hour to prevent overnight disconnect)
     else:
+<<<<<<< HEAD
         engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)  # recycle connection every hour to prevent overnight disconnect)
 else:
     engine = create_engine('mysql://bfc1ffabdb36c3:65da212b@us-cdbr-east-02.cleardb.com/heroku_1cec684f35035ce', echo=False, pool_recycle=3600)  # recycle connection every hour to prevent overnight disconnect)
+=======
+        engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
+elif bool(os.environ.get('TEST_RUN_MIKE', False)):
+    engine = create_engine('mysql://anthony@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
+
+else:
+#    engine = create_engine('mysql://bfc1ffabdb36c3:65da212b@us-cdbr-east-02.cleardb.com/heroku_1cec684f35035ce', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
+    engine = create_engine('mysql://b7cf3773be7303:3e0da60e@us-cdbr-east-02.cleardb.com/heroku_68620991f6061a0', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
+    
+>>>>>>> 21247e0db3a57e18f39e4aac463b8542024fca79
 
 Base = declarative_base(bind=engine)
 sm = sessionmaker(bind=engine, autoflush=True, autocommit=False, expire_on_commit=False)
@@ -98,6 +111,11 @@ class InvalidGameRosterException(Exception):
         Exception.__init__(self, message)
         self.message = message
 
+class PowerupException(Exception):
+    def __init__(self, message):
+        Exception.__init__(self, message)
+        self.message = message
+
 class Game(Base):
     __tablename__ = 'game'
     # column definitions
@@ -111,10 +129,20 @@ class Game(Base):
     started = Column(Boolean(), default=False)
     over = Column(Boolean(), default=False)
     
+    #Powerup Enabled Columns
+    body_double = Column(Boolean(), default=True)
+    fast_reload = Column(Boolean(), default=True)
+    double_shot = Column(Boolean(), default=True)
+    
     def start(self):
+<<<<<<< HEAD
         if len(self.player_statuses) > 1 and len(self.game_masters) > 0:
             self.assign_initial_missions()
+=======
+        if len(self.get_players()) > 1 and len(self.game_masters) > 0:
+>>>>>>> 21247e0db3a57e18f39e4aac463b8542024fca79
             self.started = True
+            self.assign_initial_missions()
         else:
             raise InvalidGameRosterException("Must have two or more players and 1 game master")
     
@@ -207,22 +235,39 @@ class Game(Base):
         s = object_session(self)
         s.add_all(missions)
         s.flush()
-        
+        s.commit()
     
-    def mission_completed(self, mission):
-        # validate the mission belongs to this game
+    def mission_completed(self, mission, shot=None):
+        #validate the mission belongs to this game
         if mission.game_id == self.id:
             pass
             # Get the target's mission to reassign it to the assassin
             targets_mission = object_session(self).query(Mission).filter_by(game_id=self.id, assassin_id=mission.target_id, completed_timestamp=None).one()
             mission.completed_timestamp = datetime.datetime.now()
-
             # Mark the target as dead
+            if shot is not None:
+                kill = Kill(game_id=mission.game_id, assassin_id=mission.assassin_id, target_id=mission.target_id,
+                        kill_picture_url=shot.shot_picture)
+            else:
+                kill = Kill(game_id=mission.game_id, assassin_id=mission.assassin_id, target_id=mission.target_id,
+                        kill_picture_url='')
+            
+            s = object_session(self)
+            s.add(kill)
+            s.flush()
+            s.commit()
+            
             target_usergame = get_usergame(mission.target_id, mission.game_id)
             target_usergame.alive = False
             if targets_mission.target_id == mission.assassin_id:  # meaning the players in question were targeting each other, and that the game should probably be over
                 self.game_over()
             else:
+                # Increase money of assassin for successfully completing mission
+                s = object_session(self)
+                assassin_usergame = s.query(UserGame).filter_by(user_id=mission.assassin_id, game_id=mission.game_id).one()
+                assassin_usergame.money = assassin_usergame.money + MISSION_COMPLETE_PAY
+                s.flush()
+                s.commit()
                 self.reassign_mission(new_assassin_id=mission.assassin_id, mission_to_reassign=targets_mission)
         else:
             raise Exception("Supplied mission does not belong to this game!")
@@ -242,6 +287,29 @@ class Game(Base):
         except Exception, e:
             session.rollback()
             self.logger.exception(e)
+            
+    def disable_powerup(self, game_master_id, *enabled_powerup_ids):
+        s = Session()
+        game = s.query(Game).filter_by(id=self.id)
+        dbl_shot_id = s.query(Powerup).filter_by(title='double_shot').value('id')
+        fast_reload_id = s.query(Powerup).filter_by(title='fast_reload').value('id')
+        body_double_id = s.query(Powerup).filter_by(title='body_double').value('id')
+        
+        for gm in self.game_masters:
+            if(gm.id == game_master_id):
+                for p in enabled_powerup_ids:
+                    if(long(p) == body_double_id):
+                        self.body_double = False
+                    elif(long(p) == fast_reload_id):
+                        self.fast_reload = False
+                    elif(long(p) == dbl_shot_id):
+                        self.double_shot = False
+        s.flush()
+        s.commit()
+        
+    def list_enabled_powerups(self):
+        return list_enabled_powerups(self.id)
+            
 
 class UserGame(Base):
     __tablename__ = 'user_game'
@@ -253,6 +321,10 @@ class UserGame(Base):
     is_game_master = Column(Boolean, default=False, nullable=True)
     max_shot_interval_minutes = Column(Integer(), default=90)
     max_shots_per_24_hours = Column(Integer(), default=3)
+    
+    #User has powerups
+    has_double_shot = Column(Boolean(), default=False)
+    has_fast_reload = Column(Boolean(), default=False)
     has_body_double = Column(Boolean(), default=False)
     
     user = relationship(User, primaryjoin=User.id == user_id)
@@ -274,7 +346,9 @@ class UserGame(Base):
                 'game_friendly_name': self.game.title, \
                 'alive':self.alive,
                 'is_game_master':self.is_game_master
-                }
+                'alive':self.alive, \
+                'started':self.game.started, \
+                'completed':self.game.over}
         return response_dict
     
 # I don't know that we need a separate class for this.  Shot can probably encapsulate it just fine?
@@ -317,8 +391,10 @@ class Kill(Base):
                 }
         if self.assassin_gps is not None:
             response_dict['location'] = self.assassin_gps
-        if self.completed_timestamp is not None:
-            response_dict['completed'] = self.completed_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            if self.completed_timestamp is not None:
+                response_dict['completed'] = self.completed_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        except: pass
         return response_dict
 
 
@@ -350,6 +426,7 @@ class Shot(Base):
     # 1: the assassin had a mission targeting the target
     # 2: the assassin has remaining shots for the day
     # 3: the assassin does not need to wait for another shot
+    # 4: the target does not have a body double
     
     def is_valid(self):
         
@@ -382,6 +459,11 @@ class Shot(Base):
                 if time_between_last_shot_and_this_one < minimum_timedelta_between_shots:
                     return False
             
+            #Step 4: Does the target have a body double?
+            if target_usergame.has_body_double:
+                remove_body_double(target_usergame.user_id, target_usergame.game_id)
+                return False
+            
             self.valid = True
             return True
         except Exception as e:
@@ -390,6 +472,39 @@ class Shot(Base):
 
     def set_kill_id(self, kill_id):
         self.kill_id = kill_id
+
+class Powerup(Base):
+    __tablename__ = 'powerup'
+    id = Column(u'id', INTEGER(), primary_key=True, nullable=False)
+    
+    title = Column(VARCHAR(length=255))
+    cost = Column(INTEGER())
+    description = Column(VARCHAR(length=255))
+    
+    def __init__(self, title, cost, description):
+        self.title = title
+        self.cost = cost
+        self.description = description
+        
+    def add_user_powerup(self, user, game, powerup):
+        s = Session()
+        ug = s.query(UserGame).filter_by(user_id=user.id, game_id=game.id).one()
+        
+        if(powerup.title == 'double_shot'):
+            ug.has_double_shot = True
+        elif(powerup.title == 'fast_reload'):
+            ug.has_fast_reload = True
+        elif(powerup.title == 'body_double'):
+            ug.has_body_double = True
+            
+        s.flush()
+
+    def get_api_response_dict(self):
+        response_dict = {'powerup_id':self.id, \
+                'powerup_name':self.title, \
+                'powerup_cost':self.cost, \
+                'powerup_description':self.description }
+        return response_dict
 
 def get_shots_since(timestamp, user_id, game_id, valid_only=False):
     shots = Session().query(Shot).filter_by(assassin_id=user_id, game_id=game_id, valid=True).all()
@@ -406,14 +521,15 @@ def get_shots_since(timestamp, user_id, game_id, valid_only=False):
 def get_mission(game_id, assassin_username=None, assassin_id=None, target_id=None, mission_id=None):
     if assassin_username is None and assassin_id is None:
         raise Exception("Must supply either an assassin_username or an assassin_id")
-    
-    query = Session().query(Mission).filter_by(game_id=game_id, completed_timestamp=None)
-    
+    logger = logging.getLogger('get_mission')
+    query = Session().query(Mission).filter_by(game_id=game_id)
+    logger.info('mission fetch: gameid: %s assassin_username: %s assassin_id: %s target_id:%s mission_id: %s' % (str(game_id), str(assassin_username), str(assassin_id), str(target_id), str(mission_id)))
     if mission_id is not None:
         query = query.filter_by(id=mission_id)
     
     if assassin_username is not None:
         user = get_user(username=assassin_username)
+        logger.info('via username, assassin_id is %s' % str(user.id))
         assassin_id = user.id
     
     query = query.filter_by(assassin_id=assassin_id)
@@ -453,7 +569,6 @@ def get_kills(game_id, assassin_username=None, assassin_id=None):
     
     return query.all()
 
-
 def get_usergame(user_id, game_id):
         return Session().query(UserGame).filter_by(user_id=user_id, game_id=game_id).one()
 
@@ -490,7 +605,6 @@ def get_game(game_id, game_password=None):
     
     return query.one()
 
-    
 def login(username, password):
     logger = logging.getLogger('login')
     session = Session()
@@ -518,6 +632,123 @@ def clear_all():
     for table in reversed(Base.metadata.sorted_tables):
         engine.execute(table.delete())
         
+def get_powerup(powerup_title=None, powerup_id=None):
+    if powerup_title is None and powerup_id is None:
+        return None
+    
+    query = Session().query(Powerup)
+    
+    if powerup_title is not None:
+        query = query.filter_by(title=powerup_title)
+        
+    if powerup_id is not None:
+        query = query.filter_by(id=powerup_id)
+        
+    try:
+        return query.one()
+    except Exception, e:
+        if powerup_title is not None:
+            raise PowerupException("Powerup "+powerup_title+" does not exist")
+        elif powerup_id is not None:
+            raise PowerupException("Powerup "+powerup_id+" does not exist")
+        else:
+            raise e
+        
+def list_powerups():
+    s = Session()
+    
+    powerups = s.query(Powerup).all()
+        
+    return powerups
+
+def list_powerup_for_usergame(user, game_id):
+    s = Session()
+    
+    usergame = s.query(UserGame).filter_by(user_id=user.id, game_id=game_id).one()
+    powerups = list_powerups()
+    powerups = sorted(powerups, key=lambda powerup: powerup.id) #sorted smallest to largest id
+    
+    user_powerups_enabled = []
+    
+    if(usergame.has_body_double == True):
+        user_powerups_enabled.append(powerups[2])
+    if(usergame.has_fast_reload == True):
+        user_powerups_enabled.append(powerups[1])
+    if(usergame.has_double_shot == True):
+        user_powerups_enabled.append(powerups[0])
+        
+    return sorted(user_powerups_enabled, key=lambda powerup: powerup.id)
+
+def list_enabled_powerups(game_id):
+    session = Session()
+    enabled_list = []
+    powerups = list_powerups()
+    
+    en = session.query(Game).filter_by(id=game_id).one()
+    if(en.body_double == True):
+        enabled_list.append(powerups[0])
+    if(en.fast_reload == True):
+        enabled_list.append(powerups[1])
+    if(en.double_shot == True):
+        enabled_list.append(powerups[2])
+        
+    return enabled_list
+        
+def purchase_powerup(user_id, game_id, powerup_id):
+    s = Session()
+    
+    usergame = get_usergame(user_id, game_id)
+    powerup = s.query(Powerup).filter_by(id=powerup_id).one()
+    
+    # Things to stop you from purchasing
+    if(usergame.alive != True):
+        raise PowerupException("You are dead.")
+    if(usergame.money == 0):
+        raise PowerupException("You have no money.")
+    if(usergame.has_body_double == True and powerup.title == 'body_double'):
+        raise PowerupException("You have already purchased a body double.")
+    if(usergame.has_fast_reload == True and powerup.title == 'fast_reload'):
+        raise PowerupException("You have already purchased fast reload")
+    if(usergame.has_double_shot == True and powerup.title == 'double_shot'):
+        raise PowerupException("You have already purchased double shot")
+    
+    if(usergame.money >= powerup.cost):
+        usergame.money = usergame.money - powerup.cost
+        _activate(user_id, game_id, powerup)
+    else:
+        raise PowerupException("You do not have enough money for that powerup")
+    
+    s.flush()
+    
+def _activate(user_id, game_id, powerup):
+    s = Session()
+    
+    usergame = s.query(UserGame).filter_by(user_id=user_id, game_id=game_id).one()
+    
+    if(powerup.title == 'body_double'):
+        usergame.has_body_double = True
+    elif(powerup.title == 'fast_reload'):
+        usergame.has_fast_reload = True
+        usergame.max_shot_interval_minutes /= 2
+    elif(powerup.title == 'double_shot'):
+        usergame.has_double_shot = True
+        usergame.max_shots_per_24_hours *= 2
+    s.flush()
+    
+def populate_powerups():
+    session = Session()
+    
+    dbl_shot_pwr = get_or_create(session, Powerup, title='double_shot', cost=DOUBLE_SHOT_PRICE, description="Double the number of shots you can fire in 24 hours")
+    reload_pwr = get_or_create(session, Powerup, title='fast_reload', cost=FAST_RELOAD_PRICE, description="Half the time it takes to fire again")
+    bdy_dbl_pwr = get_or_create(session, Powerup, title='body_double', cost=BODY_DOUBLE_PRICE, description="Have a body double take a shot meant for you")
+    session.commit()
+
+def remove_body_double(user_id, game_id):
+    session = Session()
+    ug = session.query(UserGame).filter_by(user_id=user_id, game_id=game_id).one()
+    ug.has_body_double = False
+    session.flush()
+    session.commit()
 
 Base.metadata.create_all(engine)
 

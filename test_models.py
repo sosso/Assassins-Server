@@ -1,10 +1,13 @@
-from models import User, Game, login, Kill, Mission, Shot,\
-    InvalidGameRosterException
-
+from game_constants import MAX_SHOTS_PER_24_HOURS, MAX_SHOT_INTERVAL_MINUTES
+from models import User, Game, login, Kill, Mission, Shot, \
+    InvalidGameRosterException, Powerup, UserGame, purchase_powerup, \
+    PowerupException, get_usergame
 from test_utils import BaseTest, make_users, make_game, make_game_with_master
-
 import datetime
 import unittest
+    
+
+
 
 class TestUser(BaseTest):
     
@@ -254,6 +257,121 @@ class TestDispute(BaseTest):
         pass
     pass
 
+class TestPowerup(BaseTest):
+    def test_create_powerup(self):
+        
+        # Create 3 powerups and add them to the table
+        dbl_shot_pwr = Powerup('double_shot', 3, "test 1")
+        reload_pwr = Powerup('fast_reload', 3, "test 2")
+        bdy_dbl_pwr = Powerup('body_double', 5, "test 3")
+        
+        self.session.add(dbl_shot_pwr)
+        self.session.add(reload_pwr)
+        self.session.add(bdy_dbl_pwr)
+        self.session.flush()
+        
+        # Test to confirm the powerups are in the table
+        self.assertEquals(dbl_shot_pwr, self.session.query(Powerup).filter_by(title=dbl_shot_pwr.title).one())
+        self.assertEquals(reload_pwr, self.session.query(Powerup).filter_by(title=reload_pwr.title).one())
+        self.assertEquals(bdy_dbl_pwr, self.session.query(Powerup).filter_by(title=bdy_dbl_pwr.title).one())
+        
+    def test_enable_powerup(self):
+        
+        # Will have to create powerups, add them to database, then create a
+        # game w/ gamemaster and confirm gamemaster can enable powerups
+        
+        # creating powerups
+        dbl_shot_pwr = Powerup('double_shot', 3, "test 1")
+        reload_pwr = Powerup('fast_reload', 3, "test 2")
+        bdy_dbl_pwr = Powerup('body_double', 5, "test 3")
+        
+        self.session.add(dbl_shot_pwr)
+        self.session.add(reload_pwr)
+        self.session.add(bdy_dbl_pwr)
+        self.session.flush()
+        
+        # create game w/ gamemaster
+        game_master, game = make_game_with_master(self.session)
+        self.session.flush()
+        
+        # Enable Powerups for game
+        game.disable_powerup(game_master.id, dbl_shot_pwr.id)
+        self.assertFalse(self.session.query(Game).filter_by(id=game.id).value('double_shot'))
+        
+        game.disable_powerup(game_master.id, reload_pwr.id)
+        self.assertFalse(self.session.query(Game).filter_by(id=game.id).value('fast_reload'))
+        
+        game.disable_powerup(game_master.id, bdy_dbl_pwr.id)
+        self.assertFalse(self.session.query(Game).filter_by(id=game.id).value('body_double'))
+        
+    def test_purchase_powerup(self):
+        # Steps for testing
+        # Step 0: Create 3 powerups and add them to table
+        # Step 1: Create a game and gamemaster
+        # Step 2: Enable a powerup for the game
+        # Step 3: Add users to the game
+        # Step 4: Start game
+        # Step 5: Can users see enabled powerup(s)?
+        # Step 6: Can users buy a powerup?
+        # Step 7: Exception if they cannot buy?
+        # Step 8: Confirm each powerup has the desired effect on player
+        
+        # Step 0: Create 3 powerups and add them to the table
+        dbl_shot_pwr = Powerup('double_shot', 3, "test 1")
+        reload_pwr = Powerup('fast_reload', 3, "test 2")
+        bdy_dbl_pwr = Powerup('body_double', 5, "test 3")
+        
+        self.session.add(dbl_shot_pwr)
+        self.session.add(reload_pwr)
+        self.session.add(bdy_dbl_pwr)
+        self.session.flush()
+        
+        # Step 1: Create a game and gamemaster
+        game_master, game = make_game_with_master(self.session)
+        
+        # Step 2: Enable a powerup for the game
+        #game.disable_powerup(game_master.id, dbl_shot_pwr.id)
+        
+        # Step 3: Add users to the game
+        users = make_users(2, self.session)
+        game.add_user(users[0])
+        game.add_user(users[1])
+        
+        # Step 4: Start game
+        game.start()
+        
+        # Step 5: Can users see enabled powerup(s)?
+        enabled_powerups = game.list_enabled_powerups()
+        self.assertListEqual([bdy_dbl_pwr, reload_pwr, dbl_shot_pwr ], enabled_powerups)
+        
+        # Step 6: Can users buy a powerup?
+        purchase_powerup(users[0].id, game.id, dbl_shot_pwr.id)
+        self.assertTrue(self.session.query(UserGame).filter_by(user_id=users[0].id, game_id=game.id).value('has_double_shot'))
+        
+        # Step 7: Check for exceptions
+        # Buying the same powerup
+        self.assertRaises(PowerupException, purchase_powerup, users[0].id, game.id, dbl_shot_pwr.id)
+        # Not enough money
+        self.assertRaises(PowerupException, purchase_powerup, users[0].id, game.id, bdy_dbl_pwr.id)
+        usergame = get_usergame(user_id=users[1].id, game_id=game.id)
+        usergame.money = 0
+        # No money
+        self.assertRaises(PowerupException, purchase_powerup, users[1].id, game.id, dbl_shot_pwr.id)
+        # Caller Dead
+        usergame.money = 50
+        usergame.alive = False
+        self.assertRaises(PowerupException, purchase_powerup, users[1].id, game.id, dbl_shot_pwr.id)
+        
+        # Step 8: Confirm powerup effects
+        usergame.alive = True
+        self.assertEqual(MAX_SHOTS_PER_24_HOURS*2, self.session.query(UserGame).filter_by(user_id=users[0].id, game_id=game.id).value('max_shots_per_24_hours'))
+        purchase_powerup(users[1].id, game.id, bdy_dbl_pwr.id)
+        self.assertTrue(self.session.query(UserGame).filter_by(user_id=users[1].id, game_id=game.id).value('has_body_double'))
+        
+        purchase_powerup(users[1].id, game.id, reload_pwr.id)
+        shot_interval = self.session.query(UserGame).filter_by(user_id=users[1].id, game_id=game.id).value('max_shot_interval_minutes')
+        self.assertEqual(MAX_SHOT_INTERVAL_MINUTES/2, shot_interval)
+
 def suite():
     user_tests = unittest.TestLoader().loadTestsFromTestCase(TestUser)
     game_tests = unittest.TestLoader().loadTestsFromTestCase(TestGame)
@@ -261,4 +379,5 @@ def suite():
     shot_tests = unittest.TestLoader().loadTestsFromTestCase(TestShot)
     dispute_tests = unittest.TestLoader().loadTestsFromTestCase(TestDispute)
     mission_tests = unittest.TestLoader().loadTestsFromTestCase(TestMission)
-    return unittest.TestSuite([user_tests, game_tests, kill_tests, shot_tests, dispute_tests, mission_tests])
+    powerup_tests = unittest.TestLoader().loadTestsFromTestCase(TestPowerup)
+    return unittest.TestSuite([user_tests, game_tests, kill_tests, shot_tests, dispute_tests, mission_tests, powerup_tests])

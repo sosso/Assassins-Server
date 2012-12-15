@@ -1,14 +1,16 @@
-from handlers.response_utils import get_response_dict, auth_required
+from handlers.response_utils import get_response_dict, auth_required, \
+    BaseHandler
 from models import Session, get_user, Game, get_mission, get_missions, get_game, \
-    get_kills, Shot, get_usergames
+    get_kills, Shot, get_usergames, get_usergame
 import game_constants
 import imgur
+import logging
 import simplejson
 import tornado.web
 
 #logger = logging.getLogger('modelhandlers')
 
-class CreateGame(tornado.web.RequestHandler):
+class CreateGame(BaseHandler):
     @tornado.web.asynchronous
     @auth_required
     def post(self):
@@ -36,13 +38,14 @@ class CreateGame(tornado.web.RequestHandler):
             Session.remove()
             self.finish(simplejson.dumps(result_dict))
 
-class ViewMission(tornado.web.RequestHandler):
+class ViewMission(BaseHandler):
     @tornado.web.asynchronous
     @auth_required
     def get(self):
         username = self.get_argument('username')
         game_id = self.get_argument('game_id')
         mission_id = self.get_argument('mission_id', None)
+        logger = logging.getLogger('ViewMission')
         session = Session()
         try:
             mission = get_mission(assassin_username=username, game_id=game_id, mission_id=mission_id)
@@ -52,10 +55,11 @@ class ViewMission(tornado.web.RequestHandler):
             session.rollback()
         finally:
             Session.remove()
+            logger.info('Mission returning %s' % str(simplejson.dumps(return_dict)))
             self.finish(simplejson.dumps(return_dict))
 
 #TODO handle game master case
-class ViewAllMissions(tornado.web.RequestHandler):
+class ViewAllMissions(BaseHandler):
     @tornado.web.asynchronous
     @auth_required
     def get(self):
@@ -75,7 +79,7 @@ class ViewAllMissions(tornado.web.RequestHandler):
             Session.remove()
             self.finish(simplejson.dumps(return_dict))
 
-class Assassinate(tornado.web.RequestHandler):
+class Assassinate(BaseHandler):
     @tornado.web.asynchronous
     @auth_required
     def post(self):
@@ -88,21 +92,25 @@ class Assassinate(tornado.web.RequestHandler):
         try:
             target_user = get_user(username=target_username)
             assassin_user = get_user(username=username)
+            game = get_game(game_id)
+            mission = get_mission(game_id=game_id, assassin_username=username, target_id=target_user.id)
             
             picture_binary = self.request.files['shot_picture'][0]['body']
             shot_picture_url = imgur.upload(file_body=picture_binary)
 
             player_shooting_target = Shot(assassin_id=assassin_user.id, \
-                                        target_id=target_user.target_id, \
+                                        target_id=target_user.id, \
                                         game_id=game_id, \
                                         shot_picture=shot_picture_url)
-            if player_shooting_target.is_valid():
-                response_dict = get_response_dict(True)
-            else:
-                response_dict = get_response_dict(False, "Shot invalid.  If this was your target in this game, maybe you need to wait?")
             session.add(player_shooting_target)
             session.flush()
             session.commit()
+            if player_shooting_target.is_valid():
+                game.mission_completed(mission, player_shooting_target)
+                response_dict = get_response_dict(True)
+            else:
+                response_dict = get_response_dict(False, "Shot invalid.  If this was your target in this game, maybe they had a body double or you need to wait?")
+            
         except Exception as e:
             session.rollback()
             response_dict = get_response_dict(False, e.message)
@@ -111,7 +119,7 @@ class Assassinate(tornado.web.RequestHandler):
             self.finish(simplejson.dumps(response_dict))
 
 #TODO
-class DisputeHandler(tornado.web.RequestHandler):
+class DisputeHandler(BaseHandler):
     @auth_required
     @tornado.web.asynchronous
     def get(self):
@@ -128,7 +136,7 @@ class DisputeHandler(tornado.web.RequestHandler):
             Session.remove()
             self.finish(finish_string)
 
-class ViewKills(tornado.web.RequestHandler):
+class ViewKills(BaseHandler):
     @auth_required
     @tornado.web.asynchronous
     def get(self):
@@ -148,7 +156,7 @@ class ViewKills(tornado.web.RequestHandler):
             Session.remove()
             self.finish(simplejson.dumps(return_obj))
 
-class GetListOfJoinedOrJoinGame(tornado.web.RequestHandler):
+class GetListOfJoinedOrJoinGame(BaseHandler):
     @auth_required
     @tornado.web.asynchronous
     def get(self):
@@ -178,8 +186,12 @@ class GetListOfJoinedOrJoinGame(tornado.web.RequestHandler):
         try:
             user = get_user(username)
             game = get_game(game_id=game_id, game_password=game_password)
-            game.add_user(user)
-            response_dict = get_response_dict(True)
+            try:
+                usergame = get_usergame(user.id, game.id)
+                if usergame is not None:
+                    response_dict = get_response_dict(True)
+            except:
+                game.add_user(user)
         except Exception as e:
             session.rollback()
             response_dict = get_response_dict(False, e.message)

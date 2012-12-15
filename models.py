@@ -15,15 +15,15 @@ import datetime
 import imgur
 import logging
 import os
-#from passlib.hash import sha256_crypt
+# from passlib.hash import sha256_crypt
 
 if bool(os.environ.get('TEST_RUN', False)):
     if bool(os.environ.get('ANTHONY_TABLET_RUN', False)):
-        engine = create_engine('mysql://root:root@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
+        engine = create_engine('mysql://root:root@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)  # recycle connection every hour to prevent overnight disconnect)
     else:
-        engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
+        engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)  # recycle connection every hour to prevent overnight disconnect)
 else:
-    engine = create_engine('mysql://bfc1ffabdb36c3:65da212b@us-cdbr-east-02.cleardb.com/heroku_1cec684f35035ce', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
+    engine = create_engine('mysql://bfc1ffabdb36c3:65da212b@us-cdbr-east-02.cleardb.com/heroku_1cec684f35035ce', echo=False, pool_recycle=3600)  # recycle connection every hour to prevent overnight disconnect)
 
 Base = declarative_base(bind=engine)
 sm = sessionmaker(bind=engine, autoflush=True, autocommit=False, expire_on_commit=False)
@@ -33,7 +33,7 @@ logging.basicConfig()
 class User(Base):
     __tablename__ = 'user'
     logger = logging.getLogger('User')
-    #column definitions
+    # column definitions
     id = Column(u'id', INTEGER(), primary_key=True, nullable=False)
     username = Column(u'username', VARCHAR(length=255), nullable=False)
     password = Column(u'password', VARCHAR(length=255), nullable=False)
@@ -67,7 +67,7 @@ class Mission(Base):
     assassin_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
     target_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
     
-    #None until it's associated with a kill
+    # None until it's associated with a kill
     kill_id = Column(Integer, ForeignKey('kill.id'), nullable=True)
     
     assignment_timestamp = Column(DateTime, default=datetime.datetime.now)
@@ -100,7 +100,7 @@ class InvalidGameRosterException(Exception):
 
 class Game(Base):
     __tablename__ = 'game'
-    #column definitions
+    # column definitions
     logger = logging.getLogger('Game')
     id = Column(INTEGER(), primary_key=True)
     title = Column(VARCHAR(length=255))
@@ -112,7 +112,7 @@ class Game(Base):
     over = Column(Boolean(), default=False)
     
     def start(self):
-        if len(self.get_players()) > 1 and len(self.game_masters) > 0:
+        if len(self.player_statuses) > 1 and len(self.game_masters) > 0:
             self.assign_initial_missions()
             self.started = True
         else:
@@ -210,29 +210,29 @@ class Game(Base):
         
     
     def mission_completed(self, mission):
-        #validate the mission belongs to this game
+        # validate the mission belongs to this game
         if mission.game_id == self.id:
             pass
-            #Get the target's mission to reassign it to the assassin
+            # Get the target's mission to reassign it to the assassin
             targets_mission = object_session(self).query(Mission).filter_by(game_id=self.id, assassin_id=mission.target_id, completed_timestamp=None).one()
             mission.completed_timestamp = datetime.datetime.now()
 
-            #Mark the target as dead
+            # Mark the target as dead
             target_usergame = get_usergame(mission.target_id, mission.game_id)
             target_usergame.alive = False
-            if targets_mission.target_id == mission.assassin_id: #meaning the players in question were targeting each other, and that the game should probably be over
+            if targets_mission.target_id == mission.assassin_id:  # meaning the players in question were targeting each other, and that the game should probably be over
                 self.game_over()
             else:
                 self.reassign_mission(new_assassin_id=mission.assassin_id, mission_to_reassign=targets_mission)
         else:
             raise Exception("Supplied mission does not belong to this game!")
     
-    #TODO stub
+    # TODO stub
     def game_over(self):
         self.over = True
         
     def reassign_mission(self, new_assassin_id, mission_to_reassign):
-        #create a new mission with the proper assassin and target
+        # create a new mission with the proper assassin and target
         reassigned_mission = Mission(assassin_id=new_assassin_id, target_id=mission_to_reassign.target_id, game_id=self.id)
         session = object_session(self)
         try:
@@ -272,7 +272,9 @@ class UserGame(Base):
         response_dict = {'game_id':self.game_id, \
                 'game_password':self.game.password, \
                 'game_friendly_name': self.game.title, \
-                'alive':self.alive}
+                'alive':self.alive,
+                'is_game_master':self.is_game_master
+                }
         return response_dict
     
 # I don't know that we need a separate class for this.  Shot can probably encapsulate it just fine?
@@ -333,7 +335,7 @@ class Shot(Base):
     assassin_gps = Column(String(255), nullable=True)
     
     timestamp = Column(DateTime, default=datetime.datetime.now())
-    valid = Column(Boolean, default=False)#we'll need to ignore invalid shots when calculating shot rate
+    valid = Column(Boolean, default=False)  # we'll need to ignore invalid shots when calculating shot rate
     
     def __init__(self, assassin_id, target_id, game_id, shot_picture, assassin_gps=None, timestamp=datetime.datetime.now()):
         self.assassin_id = assassin_id
@@ -343,7 +345,7 @@ class Shot(Base):
         self.assassin_gps = assassin_gps
         self.timestamp = timestamp
         
-    #A shot is valid if the following conditions are met:
+    # A shot is valid if the following conditions are met:
     # 0: both players are alive
     # 1: the assassin had a mission targeting the target
     # 2: the assassin has remaining shots for the day
@@ -352,23 +354,23 @@ class Shot(Base):
     def is_valid(self):
         
         try:
-            #Step 0:  are both players alive?
+            # Step 0:  are both players alive?
             target_usergame = get_usergame(user_id=self.target_id, game_id=self.game_id)
             assassin_usergame = get_usergame(user_id=self.assassin_id, game_id=self.game_id)
             if not target_usergame.alive or not assassin_usergame.alive:
                 return False
             
-            #Step 1:  is the assassin targeting this person?
+            # Step 1:  is the assassin targeting this person?
             mission = get_mission(assassin_id=self.assassin_id, target_id=self.target_id, game_id=self.game_id)
             
-            #Step 2:  does the assassin have shots remaining?
+            # Step 2:  does the assassin have shots remaining?
             shots = get_shots_since(timestamp=datetime.datetime.today() - datetime.timedelta(hours=24), user_id=self.assassin_id, game_id=self.game_id, valid_only=True)
             if len(shots) >= assassin_usergame.max_shots_per_24_hours:
                 return False
             
-            #Step 3: If they have shots remaining, do they need to wait?
+            # Step 3: If they have shots remaining, do they need to wait?
             if len(shots) != 0:
-                most_recent_shot = shots[0] #their most recent shot
+                most_recent_shot = shots[0]  # their most recent shot
                 if most_recent_shot is self:
                     if len(shots) > 1:
                         most_recent_shot = shots[1]
@@ -399,7 +401,7 @@ def get_shots_since(timestamp, user_id, game_id, valid_only=False):
                 continue
             shots_to_return.append(shot)
     
-    return sorted(shots_to_return, key=lambda shot: shot.timestamp, reverse=True) #sorted most recent - oldest 
+    return sorted(shots_to_return, key=lambda shot: shot.timestamp, reverse=True)  # sorted most recent - oldest 
 
 def get_mission(game_id, assassin_username=None, assassin_id=None, target_id=None, mission_id=None):
     if assassin_username is None and assassin_id is None:

@@ -19,24 +19,15 @@ import os
 # from passlib.hash import sha256_crypt
 
 if bool(os.environ.get('TEST_RUN', False)):
-    engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
+    engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)  # recycle connection every hour to prevent overnight disconnect)
     if bool(os.environ.get('ANTHONY_TABLET_RUN', False)):
         engine = create_engine('mysql://root:root@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)  # recycle connection every hour to prevent overnight disconnect)
     else:
-<<<<<<< HEAD
         engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)  # recycle connection every hour to prevent overnight disconnect)
-else:
-    engine = create_engine('mysql://bfc1ffabdb36c3:65da212b@us-cdbr-east-02.cleardb.com/heroku_1cec684f35035ce', echo=False, pool_recycle=3600)  # recycle connection every hour to prevent overnight disconnect)
-=======
-        engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
 elif bool(os.environ.get('TEST_RUN_MIKE', False)):
-    engine = create_engine('mysql://anthony@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
-
+    engine = create_engine('mysql://anthony@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)  # recycle connection every hour to prevent overnight disconnect)
 else:
-#    engine = create_engine('mysql://bfc1ffabdb36c3:65da212b@us-cdbr-east-02.cleardb.com/heroku_1cec684f35035ce', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
-    engine = create_engine('mysql://b7cf3773be7303:3e0da60e@us-cdbr-east-02.cleardb.com/heroku_68620991f6061a0', echo=False, pool_recycle=3600)#recycle connection every hour to prevent overnight disconnect)
-    
->>>>>>> 21247e0db3a57e18f39e4aac463b8542024fca79
+    engine = create_engine('mysql://b7cf3773be7303:3e0da60e@us-cdbr-east-02.cleardb.com/heroku_68620991f6061a0', echo=False, pool_recycle=3600)  # recycle connection every hour to prevent overnight disconnect)
 
 Base = declarative_base(bind=engine)
 sm = sessionmaker(bind=engine, autoflush=True, autocommit=False, expire_on_commit=False)
@@ -129,18 +120,13 @@ class Game(Base):
     started = Column(Boolean(), default=False)
     over = Column(Boolean(), default=False)
     
-    #Powerup Enabled Columns
+    # Powerup Enabled Columns
     body_double = Column(Boolean(), default=True)
     fast_reload = Column(Boolean(), default=True)
     double_shot = Column(Boolean(), default=True)
     
     def start(self):
-<<<<<<< HEAD
-        if len(self.player_statuses) > 1 and len(self.game_masters) > 0:
-            self.assign_initial_missions()
-=======
         if len(self.get_players()) > 1 and len(self.game_masters) > 0:
->>>>>>> 21247e0db3a57e18f39e4aac463b8542024fca79
             self.started = True
             self.assign_initial_missions()
         else:
@@ -238,7 +224,7 @@ class Game(Base):
         s.commit()
     
     def mission_completed(self, mission, shot=None):
-        #validate the mission belongs to this game
+        # validate the mission belongs to this game
         if mission.game_id == self.id:
             pass
             # Get the target's mission to reassign it to the assassin
@@ -322,7 +308,7 @@ class UserGame(Base):
     max_shot_interval_minutes = Column(Integer(), default=90)
     max_shots_per_24_hours = Column(Integer(), default=3)
     
-    #User has powerups
+    # User has powerups
     has_double_shot = Column(Boolean(), default=False)
     has_fast_reload = Column(Boolean(), default=False)
     has_body_double = Column(Boolean(), default=False)
@@ -344,8 +330,8 @@ class UserGame(Base):
         response_dict = {'game_id':self.game_id, \
                 'game_password':self.game.password, \
                 'game_friendly_name': self.game.title, \
-                'alive':self.alive,
-                'is_game_master':self.is_game_master
+                'alive':self.alive, \
+                'is_game_master':self.is_game_master, \
                 'alive':self.alive, \
                 'started':self.game.started, \
                 'completed':self.game.over}
@@ -459,7 +445,7 @@ class Shot(Base):
                 if time_between_last_shot_and_this_one < minimum_timedelta_between_shots:
                     return False
             
-            #Step 4: Does the target have a body double?
+            # Step 4: Does the target have a body double?
             if target_usergame.has_body_double:
                 remove_body_double(target_usergame.user_id, target_usergame.game_id)
                 return False
@@ -648,9 +634,9 @@ def get_powerup(powerup_title=None, powerup_id=None):
         return query.one()
     except Exception, e:
         if powerup_title is not None:
-            raise PowerupException("Powerup "+powerup_title+" does not exist")
+            raise PowerupException("Powerup " + powerup_title + " does not exist")
         elif powerup_id is not None:
-            raise PowerupException("Powerup "+powerup_id+" does not exist")
+            raise PowerupException("Powerup " + powerup_id + " does not exist")
         else:
             raise e
         
@@ -666,7 +652,7 @@ def list_powerup_for_usergame(user, game_id):
     
     usergame = s.query(UserGame).filter_by(user_id=user.id, game_id=game_id).one()
     powerups = list_powerups()
-    powerups = sorted(powerups, key=lambda powerup: powerup.id) #sorted smallest to largest id
+    powerups = sorted(powerups, key=lambda powerup: powerup.id)  # sorted smallest to largest id
     
     user_powerups_enabled = []
     

@@ -17,6 +17,7 @@ class AuthenticationException(Exception):
             self.message = message
     
 class BaseHandler(tornado.web.RequestHandler):
+    session = Session()
     def _handle_request_exception(self, e):
         if isinstance(e, AuthenticationException):
             self.send_error_override(500, auth_err_json=simplejson.dumps(get_response_dict(False, e.message)))

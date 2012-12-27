@@ -233,7 +233,7 @@ class Game(Base):
             # Mark the target as dead
             if shot is not None:
                 kill = Kill(game_id=mission.game_id, assassin_id=mission.assassin_id, target_id=mission.target_id,
-                        kill_picture_url=shot.shot_picture)
+                        kill_picture_url=shot.shot_picture_url)
             else:
                 kill = Kill(game_id=mission.game_id, assassin_id=mission.assassin_id, target_id=mission.target_id,
                         kill_picture_url='')
@@ -245,6 +245,9 @@ class Game(Base):
             
             target_usergame = get_usergame(mission.target_id, mission.game_id)
             target_usergame.alive = False
+            s.add(target_usergame)
+            s.flush()
+            s.commit()
             if targets_mission.target_id == mission.assassin_id:  # meaning the players in question were targeting each other, and that the game should probably be over
                 self.game_over()
             else:
@@ -260,7 +263,11 @@ class Game(Base):
     
     # TODO stub
     def game_over(self):
+        s = object_session(self)
         self.over = True
+        s.add(self)
+        s.flush()
+        s.commit()
         
     def reassign_mission(self, new_assassin_id, mission_to_reassign):
         # create a new mission with the proper assassin and target

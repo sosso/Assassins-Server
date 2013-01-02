@@ -7,7 +7,7 @@ import unittest
 
 
 
-base_url = 'http://127.0.0.1:' + os.environ.get("PORT", 5000)
+base_url = 'http://127.0.0.1:' + os.environ.get("PORT", 5000) + '/'
 success_dict = {'success':'success'}
 exists_dict = {u'reason': u'Account already exists', u'success': u'error'}
 files = {'profile_picture': open('test.png', 'rb').read()}

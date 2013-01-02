@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 *.py[cod]
 
 # C extensions
@@ -58,4 +57,3 @@ local.properties
 # Eclipse project files
 .classpath
 .project
->>>>>>> c94757410bd2e745822bb3df664461f0a6a7ebcf

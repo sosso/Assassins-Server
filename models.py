@@ -511,11 +511,11 @@ def get_shots_since(timestamp, user_id, game_id, valid_only=False):
     
     return sorted(shots_to_return, key=lambda shot: shot.timestamp, reverse=True)  # sorted most recent - oldest 
 
-def get_mission(game_id, assassin_username=None, assassin_id=None, target_id=None, mission_id=None):
+def get_mission(game_id, assassin_username=None, assassin_id=None, target_id=None, mission_id=None, completed_timestamp=None):
     if assassin_username is None and assassin_id is None:
         raise Exception("Must supply either an assassin_username or an assassin_id")
     logger = logging.getLogger('get_mission')
-    query = Session().query(Mission).filter_by(game_id=game_id)
+    query = Session().query(Mission).filter_by(game_id=game_id, completed_timestamp=completed_timestamp)
     logger.info('mission fetch: gameid: %s assassin_username: %s assassin_id: %s target_id:%s mission_id: %s' % (str(game_id), str(assassin_username), str(assassin_id), str(target_id), str(mission_id)))
     if mission_id is not None:
         query = query.filter_by(id=mission_id)

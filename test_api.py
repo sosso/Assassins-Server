@@ -16,7 +16,7 @@ test_game_password = 'test_game_password'
 def create_users(count=1):
     reqs = []
     for usernumber in range(count):
-        reqs.append(requests.post(base_url + 'account/createuser?username=test_user%d&password=test_pass' % usernumber, files=files))#create, then make again
+        reqs.append(requests.post(base_url + 'account/createuser?username=test_user%d&password=test_pass' % usernumber, files=files))  # create, then make again
     return reqs
 
 def get_kills_list(game_req, user_req):
@@ -28,7 +28,7 @@ def assassinate(game_req, assassin_req, target_req):
                'target_username':target_req.json['username'], \
                'game_id':game_req.json['game_id'],
                'secret_token':'test_pass'}
-    return requests.post(base_url + 'game/assassinate?', params=payload, files=shot_files)#create, then make again
+    return requests.post(base_url + 'game/assassinate?', params=payload, files=shot_files)  # create, then make again
 
 def create_game():
     create_users()
@@ -38,8 +38,13 @@ def create_game():
     return r
 
 def join_game(game_req, user_req):
+    
+    if 'username' not in user_req.json:
+        username = user_req.url.split('=')[1].split('&')[0]
+    else:
+        username = user_req.json['username']
     payload = {'game_id':game_req.json['game_id'], 'game_password':test_game_password, \
-                    'username':user_req.json['username'], 'secret_token':'test_pass'}
+                    'username':username, 'secret_token':'test_pass'}
     r = requests.post(base_url + 'game/?', params=payload)
     return r
 
@@ -85,7 +90,7 @@ class TestGame(APIBaseTest):
 
 class TestGameMaster(APIBaseTest):
     def test_start_game(self):
-        #Create a game, add two additional users, and start it
+        # Create a game, add two additional users, and start it
         user_reqs = create_users(3)
         game_req = create_game()
         join_req_1 = join_game(game_req, user_reqs[1])
@@ -111,9 +116,9 @@ class TestPowerup(APIBaseTest):
         populate_powerups()
         
         game_req = create_game()
-        payload = {'username':'test_user0', 'game_id':game_req.json['game_id'],\
+        payload = {'username':'test_user0', 'game_id':game_req.json['game_id'], \
                    'secret_token':'test_pass'}
-        powerups_enabled_req = requests.get(base_url+'game/powerup/available?', params=payload)
+        powerups_enabled_req = requests.get(base_url + 'game/powerup/available?', params=payload)
         self.assertTrue(isinstance(powerups_enabled_req.json, list))
         self.assertTrue(len(powerups_enabled_req.json) == 3)
         
@@ -124,17 +129,17 @@ class TestPowerup(APIBaseTest):
         s = Session()
         powerups = s.query(Powerup).all()       
         
-        payload = {'username':'test_user0', 'game_id':game_req.json['game_id'],\
+        payload = {'username':'test_user0', 'game_id':game_req.json['game_id'], \
                    'secret_token':'test_pass', 'powerup_id':powerups[0].id}
-        powerups_disabled_req = requests.post(base_url+'game/powerup/disable?', params=payload)
+        powerups_disabled_req = requests.post(base_url + 'game/powerup/disable?', params=payload)
         
         user_req = create_users(2)
         join_req = join_game(game_req, user_req[1])
         
-        payload1 = {'username':user_req[1].json['username'], 'game_id':game_req.json['game_id'],\
+        payload1 = {'username':user_req[1].json['username'], 'game_id':game_req.json['game_id'], \
                     'secret_token':'test_pass'}
         
-        powerups_enabled_req = requests.get(base_url+'game/powerup/available?', params=payload1)
+        powerups_enabled_req = requests.get(base_url + 'game/powerup/available?', params=payload1)
         self.assertTrue(isinstance(powerups_enabled_req.json, list))
         self.assertTrue(len(powerups_enabled_req.json) == 2)
         Session.remove()
@@ -149,10 +154,10 @@ class TestPowerup(APIBaseTest):
         user_req = create_users(2)
         join_req = join_game(game_req, user_req[1])
         
-        payload = {'username':'test_user1', 'game_id':game_req.json['game_id'],\
+        payload = {'username':'test_user1', 'game_id':game_req.json['game_id'], \
                    'secret_token':'test_pass', 'item_id':powerups[0].id}
         
-        powerup_purchase_req = requests.post(base_url+'game/powerup/buy?', params=payload)
+        powerup_purchase_req = requests.post(base_url + 'game/powerup/buy?', params=payload)
         
         user = get_user('test_user1')
         user1_game = get_usergame(user.id, game_req.json['game_id'])

@@ -18,14 +18,12 @@ import logging
 import os
 # from passlib.hash import sha256_crypt
 
-if bool(os.environ.get('TEST_RUN', False)):
+if os.environ.get('TEST_RUN', "False") == "True":
     engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)  # recycle connection every hour to prevent overnight disconnect)
     if bool(os.environ.get('ANTHONY_TABLET_RUN', False)):
         engine = create_engine('mysql://root:root@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)  # recycle connection every hour to prevent overnight disconnect)
     else:
         engine = create_engine('mysql://anthony:password@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)  # recycle connection every hour to prevent overnight disconnect)
-elif bool(os.environ.get('TEST_RUN_MIKE', False)):
-    engine = create_engine('mysql://anthony@127.0.0.1:3306/test_assassins', echo=False, pool_recycle=3600)  # recycle connection every hour to prevent overnight disconnect)
 else:
     engine = create_engine('mysql://b7cf3773be7303:3e0da60e@us-cdbr-east-02.cleardb.com/heroku_68620991f6061a0', echo=False, pool_recycle=3600)  # recycle connection every hour to prevent overnight disconnect)
 

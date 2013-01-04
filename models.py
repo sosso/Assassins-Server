@@ -341,7 +341,45 @@ class UserGame(Base):
                 'started':self.game.started, \
                 'completed':self.game.over}
         return response_dict
+
+class Dispute(Base):
+    __tablename__ = 'dispute'
+
+    game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
+    shot_id = Column(Integer, ForeignKey('shot.id'), primary_key=True)
+    shot_upheld = Column(Boolean(), default=None, nullable=True)
+    claim = Column(String(255), default='')
+    confirmation_expiration = Column(DateTime)
+    gm_decision_reason = Column(String(255), default='', nullable=True)
+    timestamp = Column(DateTime, default=datetime.datetime.now)
     
+    def __init__(self, game_id, shot_id, claim=''):
+        self.game_id = game_id
+        self.shot_id = shot_id
+        self.confirmation_expiration = datetime.datetime.now() + datetime.timedelta(hours=9)
+        self.claim = claim
+        
+    def resolve(self, shot_upheld, gm_decision_reason='No reason given'):
+        if datetime.datetime.now() >= self.confirmation_expiration and self.shot_upheld is None:
+            self.shot_upheld = True
+            self.gm_decision_reason = 'The GM took too long to confirm/reject the kill.  Kill assumed valid.'
+        else:
+            self.shot_upheld = shot_upheld
+            self.gm_decision_reason = gm_decision_reason
+        if self.shot_upheld:
+            self.game.mission_completed(get_mission(self.game_id, assassin_id=self.shot.assassin_id, target_id=self.shot.target_id))
+
+    def __repr__(self):
+        return '<Dispute %d @ %d>' % (self.shot_id, self.game_id)
+
+    def get_api_response_dict(self):
+        response_dict = {'game_id':self.game_id, \
+                'shot_upheld':self.shot_upheld, \
+                'claim':self.claim, \
+                'confirmation_expiration':self.confirmation_expiration}
+        return response_dict
+    
+
 # I don't know that we need a separate class for this.  Shot can probably encapsulate it just fine?
 # But maybe we archive this?
 
@@ -546,6 +584,11 @@ def get_missions(game_id, assassin_username=None, assassin_id=None):
     if assassin_id is not None:
         query = query.filter_by(id=assassin_id)
     
+    return query.all()
+
+    
+def get_disputes(game_id):
+    query = Session().query(Dispute).filter_by(game_id=game_id)
     return query.all()
 
 def get_kills(game_id, assassin_username=None, assassin_id=None):

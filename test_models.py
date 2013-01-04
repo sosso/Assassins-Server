@@ -1,7 +1,7 @@
 from game_constants import MAX_SHOTS_PER_24_HOURS, MAX_SHOT_INTERVAL_MINUTES
 from models import User, Game, login, Kill, Mission, Shot, \
     InvalidGameRosterException, Powerup, UserGame, purchase_powerup, \
-    PowerupException, get_usergame
+    PowerupException, get_usergame, get_disputes, Dispute
 from test_utils import BaseTest, make_users, make_game, make_game_with_master
 import datetime
 import unittest
@@ -36,20 +36,20 @@ class TestGame(BaseTest):
         game_master, game = make_game_with_master(session=self.session, add_gm_to_game=False)
         self.assertFalse(game.started)
         
-        #There's only one user, so the game can't start
+        # There's only one user, so the game can't start
         
         self.assertRaises(InvalidGameRosterException, game.start)
         
-        #Add a user, and the game still can't start because gamemasters can't play
+        # Add a user, and the game still can't start because gamemasters can't play
         users = make_users(2, self.session)
         game.add_user(users[0])
         self.assertRaises(InvalidGameRosterException, game.start)
         
-        #Add the second player, can't start because although there's 2 players, there's no gamemaster
+        # Add the second player, can't start because although there's 2 players, there's no gamemaster
         game.add_user(users[1])
         self.assertRaises(InvalidGameRosterException, game.start)
         
-        #Add game master and we can finally play
+        # Add game master and we can finally play
         game.add_game_master(game_master)
         game.start()
         self.assertTrue(game.started)
@@ -123,9 +123,9 @@ class TestShot(BaseTest):
         
         shot_picture = 'http://i.imgur.com/sSm81.jpg'
         
-        self.assertEqual(3, players[0].get_shots_remaining(game.id))#user should have 3 shots since none have been fired
+        self.assertEqual(3, players[0].get_shots_remaining(game.id))  # user should have 3 shots since none have been fired
         
-        #fire a shot
+        # fire a shot
         valid_shot = Shot(assassin_id=players[0].id, \
                      target_id=players[1].id, \
                       game_id=game.id,
@@ -134,117 +134,119 @@ class TestShot(BaseTest):
         self.session.add(valid_shot)
         self.session.flush()
         self.assertTrue(valid_shot.is_valid())
-        self.assertEqual(2, players[0].get_shots_remaining(game.id)) #make sure the user only has 2 shots left
+        self.assertEqual(2, players[0].get_shots_remaining(game.id))  # make sure the user only has 2 shots left
         
-        #wait 89 minutes, and fire another shot.  Shouldn't work because it hasn't been 90 minutes.
+        # wait 89 minutes, and fire another shot.  Shouldn't work because it hasn't been 90 minutes.
         invalid_shot = Shot(assassin_id=players[0].id, \
                      target_id=players[1].id, \
                       game_id=game.id,
                       shot_picture=shot_picture,
                       assassin_gps="1234567N;12345678W",
-                      timestamp=datetime.datetime.now()+datetime.timedelta(minutes=89))
+                      timestamp=datetime.datetime.now() + datetime.timedelta(minutes=89))
         self.session.add(invalid_shot)
         self.session.flush()
-        self.assertEqual(2, players[0].get_shots_remaining(game.id))#the shot wasn't valid, so it shouldn't have been subtracted
+        self.assertEqual(2, players[0].get_shots_remaining(game.id))  # the shot wasn't valid, so it shouldn't have been subtracted
         self.assertFalse(invalid_shot.is_valid())
         
-        #wait 90 minutes from the valid shot and fire again.  This should work.
+        # wait 90 minutes from the valid shot and fire again.  This should work.
         valid_shot2 = Shot(assassin_id=players[0].id, \
                      target_id=players[1].id, \
                       game_id=game.id,
                       shot_picture=shot_picture,
                       assassin_gps="1234567N;12345678W",
-                      timestamp=datetime.datetime.now()+datetime.timedelta(minutes=90))
+                      timestamp=datetime.datetime.now() + datetime.timedelta(minutes=90))
         self.session.add(valid_shot2)
         self.session.flush()
         self.assertTrue(valid_shot2.is_valid())
         self.assertEqual(1, players[0].get_shots_remaining(game.id))
         
-        #wait 90+89 minutes, and fire another shot.  Shouldn't work because it hasn't been 90 minutes from valid shot 2.
+        # wait 90+89 minutes, and fire another shot.  Shouldn't work because it hasn't been 90 minutes from valid shot 2.
         invalid_shot = Shot(assassin_id=players[0].id, \
                      target_id=players[1].id, \
                       game_id=game.id,
                       shot_picture=shot_picture,
                       assassin_gps="1234567N;12345678W",
-                      timestamp=datetime.datetime.now()+datetime.timedelta(minutes=90 + 89))
+                      timestamp=datetime.datetime.now() + datetime.timedelta(minutes=90 + 89))
         self.session.add(invalid_shot)
         self.session.flush()
-        self.assertEqual(1, players[0].get_shots_remaining(game.id))#the shot wasn't valid, so it shouldn't have been subtracted
+        self.assertEqual(1, players[0].get_shots_remaining(game.id))  # the shot wasn't valid, so it shouldn't have been subtracted
         self.assertFalse(invalid_shot.is_valid())
         
-        #wait 90+90 minutes from the valid shot and fire again.  This should work and is their LAST shot for the day.
+        # wait 90+90 minutes from the valid shot and fire again.  This should work and is their LAST shot for the day.
         valid_shot3 = Shot(assassin_id=players[0].id, \
                      target_id=players[1].id, \
                       game_id=game.id,
                       shot_picture=shot_picture,
                       assassin_gps="1234567N;12345678W",
-                      timestamp=datetime.datetime.now()+datetime.timedelta(minutes=90 + 90))
+                      timestamp=datetime.datetime.now() + datetime.timedelta(minutes=90 + 90))
         self.session.add(valid_shot3)
         self.session.flush()
         self.assertTrue(valid_shot3.is_valid())
         self.assertEqual(0, players[0].get_shots_remaining(game.id))
         
-        #wait 90+90+89 minutes, and fire another shot.  Shouldn't work because they've used their 3 shots for the day!
+        # wait 90+90+89 minutes, and fire another shot.  Shouldn't work because they've used their 3 shots for the day!
         invalid_shot = Shot(assassin_id=players[0].id, \
                      target_id=players[1].id, \
                       game_id=game.id,
                       shot_picture=shot_picture,
                       assassin_gps="1234567N;12345678W",
-                      timestamp=datetime.datetime.now()+datetime.timedelta(minutes=90 + 90 + 89))
+                      timestamp=datetime.datetime.now() + datetime.timedelta(minutes=90 + 90 + 89))
         self.session.add(invalid_shot)
         self.session.flush()
-        self.assertEqual(0, players[0].get_shots_remaining(game.id))#the shot wasn't valid, so it shouldn't have been subtracted
+        self.assertEqual(0, players[0].get_shots_remaining(game.id))  # the shot wasn't valid, so it shouldn't have been subtracted
         self.assertFalse(invalid_shot.is_valid())
         
-        #wait 90+90+90 minutes from the valid shot and fire again.  This should still not work because they've used 3 shots!
+        # wait 90+90+90 minutes from the valid shot and fire again.  This should still not work because they've used 3 shots!
         valid_shot3 = Shot(assassin_id=players[0].id, \
                      target_id=players[1].id, \
                       game_id=game.id,
                       shot_picture=shot_picture,
                       assassin_gps="1234567N;12345678W",
-                      timestamp=datetime.datetime.now()+datetime.timedelta(minutes=90 + 90 + 90))
+                      timestamp=datetime.datetime.now() + datetime.timedelta(minutes=90 + 90 + 90))
         self.session.add(valid_shot3)
         self.session.flush()
         self.assertFalse(valid_shot3.is_valid())
         self.assertEqual(0, players[0].get_shots_remaining(game.id))
         
-        #wait 24 hours and fire another shot.  Should work because it has been 24 minutes from first valid shot.
-        #They still haven't recovered from their other 2 shots, however, so they have no remaining shots.
+        # wait 24 hours and fire another shot.  Should work because it has been 24 minutes from first valid shot.
+        # They still haven't recovered from their other 2 shots, however, so they have no remaining shots.
         valid_shot4 = Shot(assassin_id=players[0].id, \
                      target_id=players[1].id, \
                       game_id=game.id,
                       shot_picture=shot_picture,
                       assassin_gps="1234567N;12345678W",
-                      timestamp=datetime.datetime.now()+datetime.timedelta(minutes=24 * 60))
+                      timestamp=datetime.datetime.now() + datetime.timedelta(minutes=24 * 60))
         self.session.add(valid_shot4)
         self.session.flush()
-        self.assertEqual(0, players[0].get_shots_remaining(game.id))#they should have only had 1 valid shot, and now it's 0
+        self.assertEqual(0, players[0].get_shots_remaining(game.id))  # they should have only had 1 valid shot, and now it's 0
         self.assertFalse(valid_shot4.is_valid())
         
 class TestDispute(BaseTest):
     def test_create_dispute(self):
         
-        #make a game, add some users to it, start it
+        # make a game, add some users to it, start it
         game_master, game = make_game_with_master(self.session)
         users = make_users(3, self.session)
         game.add_users(users)
         game.start()
         
-        #The assassin shoots his target
+        # The assassin shoots his target
         an_active_mission = game.get_missions(active_only=True)[0]
         bogus_shot = Shot(assassin_id=an_active_mission.assassin_id, \
              target_id=an_active_mission.target_id, \
               game_id=game.id,
               shot_picture="http://www.imgur.com/bogusShot.png")
+        self.session.add(bogus_shot)
+        self.session.flush()
         
-        #No disputes yet
+        
+        # No disputes yet
         self.assertEqual(0, len(get_disputes(game_id=game.id)))
         
-        #The target sees the supposed kill picture, but it's just a picture of Tard the Grumpy Cat, not of him being shot
+        # The target sees the supposed kill picture, but it's just a picture of Tard the Grumpy Cat, not of him being shot
         dispute = Dispute(claim='This is just a picture of tard the grumpy cat!', game_id=game.id, shot_id=bogus_shot.id)
         
         self.session.add(dispute)
-        self.session.add(bogus_shot)
         self.session.flush()
         
         disputes_from_db = get_disputes(game_id=game.id)
@@ -252,10 +254,34 @@ class TestDispute(BaseTest):
         self.assertEqual(dispute, disputes_from_db[0])
         
         
+    def test_resolve_dispute(self):
+        game_master, game = make_game_with_master(self.session)
+        users = make_users(3, self.session)
+        game.add_users(users)
+        game.start()
         
-    def test_resolve_dispute_by_gm(self):
-        pass
-    pass
+        # The assassin shoots his target
+        an_active_mission = game.get_missions(active_only=True)[0]
+        valid_shot = Shot(assassin_id=an_active_mission.assassin_id, \
+             target_id=an_active_mission.target_id, \
+              game_id=game.id,
+              shot_picture="http://www.imgur.com/bogusShot.png")
+        self.session.add(valid_shot)
+        self.session.flush()
+        
+        # The target sees the supposed kill picture, but it's just a picture of Tard the Grumpy Cat, not of him being shot
+        dispute = Dispute(claim='This is just a picture of tard the grumpy cat!', game_id=game.id, shot_id=valid_shot.id)
+        self.session.add(dispute)
+        self.session.flush()
+        
+        # dispute hasn't been resolved yet, so resolution status is None
+        self.assertTrue(dispute.shot_upheld is None)
+        # resolve the dispute; the victim was lying!  Valid kill.
+        dispute.resolve(shot_upheld=True, gm_decision_reason='This is clearly a headshot of the victim.')
+        
+        disputes_from_db = get_disputes(game_id=game.id)
+        self.assertTrue(disputes_from_db[0].shot_upheld)
+        
 
 class TestPowerup(BaseTest):
     def test_create_powerup(self):
@@ -330,7 +356,7 @@ class TestPowerup(BaseTest):
         game_master, game = make_game_with_master(self.session)
         
         # Step 2: Enable a powerup for the game
-        #game.disable_powerup(game_master.id, dbl_shot_pwr.id)
+        # game.disable_powerup(game_master.id, dbl_shot_pwr.id)
         
         # Step 3: Add users to the game
         users = make_users(2, self.session)
@@ -364,13 +390,13 @@ class TestPowerup(BaseTest):
         
         # Step 8: Confirm powerup effects
         usergame.alive = True
-        self.assertEqual(MAX_SHOTS_PER_24_HOURS*2, self.session.query(UserGame).filter_by(user_id=users[0].id, game_id=game.id).value('max_shots_per_24_hours'))
+        self.assertEqual(MAX_SHOTS_PER_24_HOURS * 2, self.session.query(UserGame).filter_by(user_id=users[0].id, game_id=game.id).value('max_shots_per_24_hours'))
         purchase_powerup(users[1].id, game.id, bdy_dbl_pwr.id)
         self.assertTrue(self.session.query(UserGame).filter_by(user_id=users[1].id, game_id=game.id).value('has_body_double'))
         
         purchase_powerup(users[1].id, game.id, reload_pwr.id)
         shot_interval = self.session.query(UserGame).filter_by(user_id=users[1].id, game_id=game.id).value('max_shot_interval_minutes')
-        self.assertEqual(MAX_SHOT_INTERVAL_MINUTES/2, shot_interval)
+        self.assertEqual(MAX_SHOT_INTERVAL_MINUTES / 2, shot_interval)
 
 def suite():
     user_tests = unittest.TestLoader().loadTestsFromTestCase(TestUser)
@@ -379,5 +405,5 @@ def suite():
     shot_tests = unittest.TestLoader().loadTestsFromTestCase(TestShot)
     dispute_tests = unittest.TestLoader().loadTestsFromTestCase(TestDispute)
     mission_tests = unittest.TestLoader().loadTestsFromTestCase(TestMission)
-    powerup_tests = unittest.TestLoader().loadTestsFromTestCase(TestPowerup)
-    return unittest.TestSuite([user_tests, game_tests, kill_tests, shot_tests, dispute_tests, mission_tests, powerup_tests])
+#    powerup_tests = unittest.TestLoader().loadTestsFromTestCase(TestPowerup)
+    return unittest.TestSuite([user_tests, game_tests, kill_tests, shot_tests, dispute_tests, mission_tests])  # , powerup_tests])

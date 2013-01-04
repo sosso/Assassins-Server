@@ -239,6 +239,9 @@ class Game(Base):
             s = object_session(self)
             s.add(kill)
             s.flush()
+            if shot is not None:
+                shot.kill_id = kill.id
+            
             s.commit()
             
             target_usergame = get_usergame(mission.target_id, mission.game_id)
@@ -249,12 +252,14 @@ class Game(Base):
             if targets_mission.target_id == mission.assassin_id:  # meaning the players in question were targeting each other, and that the game should probably be over
                 self.game_over()
             else:
-                # Increase money of assassin for successfully completing mission
+                
                 s = object_session(self)
                 assassin_usergame = s.query(UserGame).filter_by(user_id=mission.assassin_id, game_id=mission.game_id).one()
-                assassin_usergame.money = assassin_usergame.money + MISSION_COMPLETE_PAY
-                s.flush()
-                s.commit()
+
+# Increase money of assassin for successfully completing mission
+#                assassin_usergame.money = assassin_usergame.money + MISSION_COMPLETE_PAY
+#                s.flush()
+#                s.commit()
                 self.reassign_mission(new_assassin_id=mission.assassin_id, mission_to_reassign=targets_mission)
         else:
             raise Exception("Supplied mission does not belong to this game!")
@@ -308,7 +313,7 @@ class UserGame(Base):
     user_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
     game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
     money = Column(Integer, nullable=False)
-    alive = Column(Boolean)
+    alive = Column(Boolean, default=True, nullable=True)  # alive==None means you've been shot!
     is_game_master = Column(Boolean, default=False, nullable=True)
     max_shot_interval_minutes = Column(Integer(), default=90)
     max_shots_per_24_hours = Column(Integer(), default=3)
@@ -337,7 +342,6 @@ class UserGame(Base):
                 'game_friendly_name': self.game.title, \
                 'alive':self.alive, \
                 'is_game_master':self.is_game_master, \
-                'alive':self.alive, \
                 'started':self.game.started, \
                 'completed':self.game.over}
         return response_dict
@@ -397,7 +401,7 @@ class Kill(Base):
     assassin_gps = Column(String(255), nullable=True)
     target_gps = Column(String(255), nullable=True)
     timestamp = Column(DateTime, default=datetime.datetime.now)
-    confirmed = Column(Boolean, default=False)
+    upheld = Column(Boolean, default=None, nullable=True)
     
     def __init__(self, assassin_id, game_id, target_id, kill_picture_url, validation_picture=None, assassin_gps=None, target_gps=None):
         self.assassin_id = assassin_id
@@ -441,6 +445,7 @@ class Shot(Base):
     
     timestamp = Column(DateTime, default=datetime.datetime.now())
     valid = Column(Boolean, default=False)  # we'll need to ignore invalid shots when calculating shot rate
+    kill_upheld = Column(Boolean, default=None, nullable=True)
     
     def __init__(self, assassin_id, target_id, game_id, shot_picture, assassin_gps=None, timestamp=datetime.datetime.now()):
         self.assassin_id = assassin_id
@@ -638,6 +643,12 @@ def get_game(game_id, game_password=None):
         query = query.filter_by(password=game_password)
     
     return query.one()
+
+def get_kill(kill_id):
+    return Session().query(Game).filter_by(id=kill_id).one()
+
+def get_shot(shot_id):
+    return Session().query(Shot).filter_by(id=shot_id).one()
 
 def login(username, password):
     logger = logging.getLogger('login')

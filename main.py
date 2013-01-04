@@ -1,7 +1,7 @@
-#	Sample main.py Tornado file
+# 	Sample main.py Tornado file
 # 
-#	Author: Mike Dory
-#		11.12.11
+# 	Author: Mike Dory
+# 		11.12.11
 #
 
 #!/usr/bin/env python
@@ -32,6 +32,7 @@ class Application(tornado.web.Application):
 			(r"/game/viewallmissions", GameActionHandlers.ViewAllMissions),
 			(r"/game/assassinate", GameActionHandlers.Assassinate),
 			(r"/game/disputes", GameActionHandlers.DisputeHandler),
+			(r"/game/shot", GameActionHandlers.ShotHandler),
 			(r"/game/kills/view", GameActionHandlers.ViewKills),
 			(r"/game/", GameActionHandlers.GetListOfJoinedOrJoinGame),
 			(r"/game/powerup/buy", PowerupHandlers.BuyPowerup),

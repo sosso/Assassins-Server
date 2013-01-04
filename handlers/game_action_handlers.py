@@ -1,14 +1,14 @@
 from handlers.response_utils import get_response_dict, auth_required, \
     BaseHandler
 from models import Session, get_user, Game, get_mission, get_missions, get_game, \
-    get_kills, Shot, get_usergames, get_usergame
+    get_kills, Shot, get_usergames, get_usergame, get_kill, get_shot, Dispute
 import game_constants
 import imgur
 import logging
 import simplejson
 import tornado.web
 
-#logger = logging.getLogger('modelhandlers')
+# logger = logging.getLogger('modelhandlers')
 
 class CreateGame(BaseHandler):
     @tornado.web.asynchronous
@@ -58,7 +58,7 @@ class ViewMission(BaseHandler):
             logger.info('Mission returning %s' % str(simplejson.dumps(return_dict)))
             self.finish(simplejson.dumps(return_dict))
 
-#TODO handle game master case
+# TODO handle game master case
 class ViewAllMissions(BaseHandler):
     @tornado.web.asynchronous
     @auth_required
@@ -106,11 +106,14 @@ class Assassinate(BaseHandler):
             session.flush()
             session.commit()
             if player_shooting_target.is_valid():
-                game.mission_completed(mission, player_shooting_target)
+                target_usergame = get_usergame(user_id=target_user.id, game_id=game_id)
+                target_usergame.alive = None  # mark them as shot
+                session.add(target_usergame)
+                session.flush()
+                session.commit()
                 response_dict = get_response_dict(True)
             else:
                 response_dict = get_response_dict(False, "Shot invalid.  If this was your target in this game, maybe they had a body double or you need to wait?")
-            
         except Exception as e:
             session.rollback()
             response_dict = get_response_dict(False, e.message)
@@ -118,23 +121,82 @@ class Assassinate(BaseHandler):
             Session.remove()
             self.finish(simplejson.dumps(response_dict))
 
-#TODO
-class DisputeHandler(BaseHandler):
+class ShotHandler(BaseHandler):
     @auth_required
     @tornado.web.asynchronous
     def get(self):
-        item_id = self.get_argument('itemid')
-        description = self.get_argument('description', '')
+        shot_id = self.get_argument('shot_id')
+        session = Session()
+        try:
+            shot = get_shot(shot_id)
+            response_dict = shot.get_api_response_dict()
+        except Exception, e:
+            session.rollback()
+            response_dict = get_response_dict(False, e.message)
+        finally:
+            Session.remove()
+            self.finish(simplejson.dumps(response_dict))
+    
+    @auth_required
+    @tornado.web.asynchronous
+    def post(self):
+        shot_id = self.get_argument('shot_id')
+        username = self.get_argument('username')
+        shot_upheld = self.get_argument('shot_upheld')
+        claim = self.get_argument('claim', '')
+        
+        resolving_user = get_user(username=username)
+        shot = get_shot(shot_id)
+        game = get_game(shot.game_id)
+        session = Session()
+        
+        mission = get_mission(game_id=game.game_id, assassin_id=shot.assassin_id, target_id=shot.target_id, completed_timestamp=None)
+        
+        if bool(shot_upheld):
+            if shot.target_id == resolving_user.id or resolving_user in game.game_masters:
+                shot.kill_upheld = True
+                game.mission_completed(mission)
+                response_dict = get_response_dict(True)
+        else:
+            if shot.target_id == resolving_user.id:
+                dispute = Dispute(game.game_id, shot_id, claim)
+                session.add(dispute)
+                session.flush()
+                session.commit()
+            elif resolving_user in game.game_masters:
+                shot.kill_upheld = False
+            
+
+# TODO
+class DisputeHandler(BaseHandler):
+    @auth_required
+    @tornado.web.asynchronous
+    def post(self):
+        username = self.get_argument('username')
+        game_id = self.get_argument('game_id')
+        shot_id = self.get_argument('shot_id')
+        shot_upheld = self.get_argument('shot_upheld')
 
         session = Session()
         try:
-            pass
+            shot = session.query(Shot).filter_by(id=shot_id)
+            resolving_user = get_user(username=username)
+            game = get_game(game_id)
+            mission = get_mission(game_id=game_id, assassin_id=shot.assassin_id, target_id=shot.target_id, completed_timestamp=None)
+            if resolving_user in game.game_masters:
+                if bool(shot_upheld):
+                    game.mission_completed(mission)
+                else:
+                    pass
+                response_dict = get_response_dict(True)
+            else:
+                response_dict = get_response_dict(False, 'Only the game master can resolve a dispute')
         except Exception, e:
             session.rollback()
-            finish_string = "Item not added"
+            response_dict = get_response_dict(False, e.message)
         finally:
             Session.remove()
-            self.finish(finish_string)
+            self.finish(response_dict)
 
 class ViewKills(BaseHandler):
     @auth_required

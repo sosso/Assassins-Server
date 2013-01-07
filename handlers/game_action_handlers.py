@@ -108,6 +108,7 @@ class Assassinate(BaseHandler):
             if player_shooting_target.is_valid():
                 target_usergame = get_usergame(user_id=target_user.id, game_id=game_id)
                 target_usergame.alive = None  # mark them as shot
+                target_usergame.pending_shot = player_shooting_target.id
                 session.add(target_usergame)
                 session.flush()
                 session.commit()
@@ -145,30 +146,56 @@ class ShotHandler(BaseHandler):
         shot_upheld = self.get_argument('shot_upheld')
         claim = self.get_argument('claim', '')
         
-        resolving_user = get_user(username=username)
-        shot = get_shot(shot_id)
-        game = get_game(shot.game_id)
-        session = Session()
-        
-        mission = get_mission(game_id=game.game_id, assassin_id=shot.assassin_id, target_id=shot.target_id, completed_timestamp=None)
-        
-        if bool(shot_upheld):
-            if shot.target_id == resolving_user.id or resolving_user in game.game_masters:
-                shot.kill_upheld = True
-                game.mission_completed(mission)
-                response_dict = get_response_dict(True)
-        else:
-            if shot.target_id == resolving_user.id:
-                dispute = Dispute(game.game_id, shot_id, claim)
-                session.add(dispute)
-                session.flush()
-                session.commit()
-            elif resolving_user in game.game_masters:
-                shot.kill_upheld = False
+        try:
+            resolving_user = get_user(username=username)
+            shot = get_shot(shot_id)
+            game = get_game(shot.game_id)
+            session = Session()
+            
+            mission = get_mission(game_id=game.id, assassin_id=shot.assassin_id, target_id=shot.target_id, completed_timestamp=None)
+            
+            if shot_upheld == True:
+                if shot.target_id == resolving_user.id or resolving_user in game.game_masters:
+                    shot.kill_upheld = True
+                    game.mission_completed(mission, shot)
+                    response_dict = get_response_dict(True)
+            else:
+                if shot.target_id == resolving_user.id:
+                    dispute = Dispute(game.id, shot_id, claim)
+                    session.add(dispute)
+                    session.flush()
+                    session.commit()
+                    response_dict = get_response_dict(True)
+                elif resolving_user in game.game_masters:
+                    shot.kill_upheld = False
+                    response_dict = get_response_dict(True)
+        except Exception as e:
+            session.rollback()
+            response_dict = get_response_dict(False, e.message)
+        finally:
+            Session.remove()
+            self.finish(simplejson.dumps(response_dict))
             
 
 # TODO
 class DisputeHandler(BaseHandler):
+    @auth_required
+    @tornado.web.asynchronous
+    def get(self):
+        username = self.get_argument('username')
+        game_id = self.get_argument('game_id')
+
+        session = Session()
+        try:
+            disputes = session.query(Dispute).filter_by(game_id=game_id).all()
+            response_dict = [x.get_api_response_dict() for x in disputes]
+        except Exception, e:
+            session.rollback()
+            response_dict = get_response_dict(False, e.message)
+        finally:
+            Session.remove()
+            self.finish(simplejson.dumps(response_dict))
+            
     @auth_required
     @tornado.web.asynchronous
     def post(self):
@@ -184,7 +211,7 @@ class DisputeHandler(BaseHandler):
             game = get_game(game_id)
             mission = get_mission(game_id=game_id, assassin_id=shot.assassin_id, target_id=shot.target_id, completed_timestamp=None)
             if resolving_user in game.game_masters:
-                if bool(shot_upheld):
+                if shot_upheld == 'True':
                     game.mission_completed(mission)
                 else:
                     pass

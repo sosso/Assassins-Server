@@ -246,6 +246,7 @@ class Game(Base):
             
             target_usergame = get_usergame(mission.target_id, mission.game_id)
             target_usergame.alive = False
+            target_usergame.pending_shot = None
             s.add(target_usergame)
             s.flush()
             s.commit()
@@ -312,6 +313,7 @@ class UserGame(Base):
 
     user_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
     game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
+    pending_shot = Column(Integer, ForeignKey('shot.id'), nullable=True, default=None)
     money = Column(Integer, nullable=False)
     alive = Column(Boolean, default=True, nullable=True)  # alive==None means you've been shot!
     is_game_master = Column(Boolean, default=False, nullable=True)
@@ -343,14 +345,17 @@ class UserGame(Base):
                 'alive':self.alive, \
                 'is_game_master':self.is_game_master, \
                 'started':self.game.started, \
-                'completed':self.game.over}
+                'completed':self.game.over, \
+                'pending_shot':self.pending_shot}
         return response_dict
 
 class Dispute(Base):
     __tablename__ = 'dispute'
-
+    id = Column(u'id', INTEGER(), primary_key=True, nullable=False)
+    
     game_id = Column(Integer, ForeignKey('game.id'), primary_key=True)
     shot_id = Column(Integer, ForeignKey('shot.id'), primary_key=True)
+    
     shot_upheld = Column(Boolean(), default=None, nullable=True)
     claim = Column(String(255), default='')
     confirmation_expiration = Column(DateTime)
@@ -380,8 +385,14 @@ class Dispute(Base):
         response_dict = {'game_id':self.game_id, \
                 'shot_upheld':self.shot_upheld, \
                 'claim':self.claim, \
-                'confirmation_expiration':self.confirmation_expiration}
-        return response_dict
+                'id':self.id}
+        try:
+            if self.timestamp is not None:
+                response_dict['confirmation_expiration'] = self.confirmation_expiration.strftime("%Y-%m-%d %H:%M:%S")
+        except: pass   
+        return {'shot':get_shot(self.shot_id).get_api_response_dict(), \
+                 'dispute':response_dict}
+        
     
 
 # I don't know that we need a separate class for this.  Shot can probably encapsulate it just fine?
@@ -401,7 +412,7 @@ class Kill(Base):
     assassin_gps = Column(String(255), nullable=True)
     target_gps = Column(String(255), nullable=True)
     timestamp = Column(DateTime, default=datetime.datetime.now)
-    upheld = Column(Boolean, default=None, nullable=True)
+    
     
     def __init__(self, assassin_id, game_id, target_id, kill_picture_url, validation_picture=None, assassin_gps=None, target_gps=None):
         self.assassin_id = assassin_id
@@ -506,6 +517,20 @@ class Shot(Base):
 
     def set_kill_id(self, kill_id):
         self.kill_id = kill_id
+        
+
+    def get_api_response_dict(self):
+        response_dict = {
+                'shot_picture':self.shot_picture_url,
+                'valid':self.valid,
+                'shot_id':self.id,
+                'assassin_username':get_user(user_id=self.assassin_id).username,
+                'target_username':get_user(user_id=self.target_id).username}
+        try:
+            if self.timestamp is not None:
+                response_dict['timestamp'] = self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        except: pass                
+        return response_dict
 
 class Powerup(Base):
     __tablename__ = 'powerup'

@@ -17,7 +17,7 @@ test_game_password = 'test_game_password'
 def create_users(count=1):
     reqs = []
     for usernumber in range(count):
-        reqs.append(requests.post(base_url + 'account/createuser?username=test_user%d&password=test_pass' % usernumber, files=files))  # create, then make again
+        reqs.append(requests.post(base_url + 'account/createuser?username=test_user%d&password=test_pass&email=test_user%d@test_email.com' % (usernumber, usernumber), files=files))  # create, then make again
     return reqs
 
 def get_kills_list(game_req, user_req):

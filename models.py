@@ -38,6 +38,7 @@ class User(Base):
     # column definitions
     id = Column(u'id', INTEGER(), primary_key=True, nullable=False)
     username = Column(u'username', VARCHAR(length=255), nullable=False)
+    email = Column(u'email', VARCHAR(length=255), nullable=False)
     password = Column(u'password', VARCHAR(length=255), nullable=False)
     profile_picture = Column(u'profile_picture', VARCHAR(length=255), nullable=False)
     
@@ -45,10 +46,11 @@ class User(Base):
     # to "game" attribute
     games = association_proxy('user_games', 'game')
     
-    def __init__(self, password, username, profile_picture):
+    def __init__(self, password, username, profile_picture, email=''):
         self.username = username
         self.password = sha256_crypt.encrypt(password)
         self.profile_picture = profile_picture
+        self.email = email
 
     def get_shots_remaining(self, game_id):
         shots = get_shots_since(datetime.datetime.now() - datetime.timedelta(days=1), self.id, game_id, valid_only=True)
@@ -685,7 +687,7 @@ def login(username, password):
         user = None
     return user
 
-def create_user(username, password, profile_picture_binary):
+def create_user(username, password, profile_picture_binary, email):
 #    profile_picture_url = ""
     profile_picture_url = imgur.upload(file_body=profile_picture_binary)
     s = Session()
@@ -693,7 +695,7 @@ def create_user(username, password, profile_picture_binary):
     if user is not None:
         raise Exception("Account already exists")
     else: 
-        user = User(password=password, username=username, profile_picture=profile_picture_url)
+        user = User(password=password, username=username, profile_picture=profile_picture_url, email=email)
         s.add(user)
         s.commit()
         s.flush()

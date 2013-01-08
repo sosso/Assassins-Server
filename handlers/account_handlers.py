@@ -27,12 +27,13 @@ class CreateUserHandler(tornado.web.RequestHandler):
         logger = logging.getLogger('CreateUserHandler')
         username = self.get_argument('username')
         password = self.get_argument('password')
+        email = self.get_argument('email')
         logger.info('Create user request received, args grabbed')
         session = Session()
         result_dict = {}
         try:
             picture_binary = self.request.files['profile_picture'][0]['body']    
-            create_user(username=username, password=password, profile_picture_binary=picture_binary)
+            create_user(username=username, password=password, profile_picture_binary=picture_binary, email=email)
             result_dict = get_response_dict(True)
             result_dict['username'] = username
         except Exception, e:

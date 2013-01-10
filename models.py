@@ -92,7 +92,9 @@ class Mission(Base):
         target = get_user(user_id=self.target_id)
         response_dict = {'target_username':target.username, \
                 'profile_picture':target.profile_picture, \
-                'assigned': self.assignment_timestamp.strftime("%Y-%m-%d %H:%M:%S")}
+                'assigned': self.assignment_timestamp.strftime("%Y-%m-%d %H:%M:%S"), \
+                'game_id':self.game_id, \
+                'id':self.id}
         if self.completed_timestamp is not None:
             response_dict['completed'] = self.completed_timestamp.strftime("%Y-%m-%d %H:%M:%S")
         return response_dict

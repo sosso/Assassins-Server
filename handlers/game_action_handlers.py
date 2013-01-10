@@ -1,7 +1,8 @@
 from handlers.response_utils import get_response_dict, auth_required, \
     BaseHandler
 from models import Session, get_user, Game, get_mission, get_missions, get_game, \
-    get_kills, Shot, get_usergames, get_usergame, get_kill, get_shot, Dispute
+    get_kills, Shot, get_usergames, get_usergame, get_kill, get_shot, Dispute, \
+    Mission
 from sqlalchemy.orm.exc import NoResultFound
 import game_constants
 import imgur
@@ -58,6 +59,25 @@ class ViewMission(BaseHandler):
             Session.remove()
             logger.info('Mission returning %s' % str(simplejson.dumps(return_dict)))
             self.finish(simplejson.dumps(return_dict))
+
+class ViewPlayerMissions(BaseHandler):
+    @tornado.web.asynchronous
+    @auth_required
+    def get(self):
+        username = self.get_argument('username')
+        logger = logging.getLogger('ViewMission')
+        session = Session()
+        try:
+            user = get_user(username=username)
+            missions = session.query(Mission).filter_by(assassin_id=user.id, completed_timestamp=None)
+            response = [x.get_response_dict for x in missions]
+        except Exception as e:
+            response = get_response_dict(False, e.message)
+            session.rollback()
+        finally:
+            Session.remove()
+            self.finish(simplejson.dumps(response))
+
 
 # TODO handle game master case
 class ViewAllMissions(BaseHandler):

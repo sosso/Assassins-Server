@@ -29,6 +29,7 @@ class Application(tornado.web.Application):
 		handlers = [
 			(r"/game/creategame", GameActionHandlers.CreateGame),
 			(r"/game/viewmission", GameActionHandlers.ViewMission),
+			(r"/game/viewmymissions", GameActionHandlers.ViewPlayerMissions),
 			(r"/game/viewallmissions", GameActionHandlers.ViewAllMissions),
 			(r"/game/assassinate", GameActionHandlers.Assassinate),
 			(r"/game/disputes", GameActionHandlers.DisputeHandler),

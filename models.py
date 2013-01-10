@@ -85,9 +85,6 @@ class Mission(Base):
     def set_kill_id(self, kill_id):
         self.kill_id = kill_id
 
-    def __repr__(self):
-        return '<UserGame %d @ %d>' % (self.game_id, self.user_id)
-    
     def get_api_response_dict(self):
         target = get_user(user_id=self.target_id)
         response_dict = {'target_username':target.username, \

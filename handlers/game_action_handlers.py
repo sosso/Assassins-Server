@@ -70,7 +70,7 @@ class ViewPlayerMissions(BaseHandler):
         try:
             user = get_user(username=username)
             missions = session.query(Mission).filter_by(assassin_id=user.id, completed_timestamp=None)
-            response = [x.get_api_response_dict for x in missions]
+            response = [x.get_api_response_dict() for x in missions]
         except Exception as e:
             response = get_response_dict(False, e.message)
             session.rollback()
